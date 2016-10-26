@@ -28,7 +28,7 @@ ControllerQobuz.prototype.onVolumioStart = function () {
     self.samplerate = self.config.get('max_bitrate') || 6;
     self.userAuthToken = self.config.get('user_auth_token');
     self.appId = "285473059"; //214748364";
-    self.appSecret = "47249d0eaefa6bf43a959c09aacdbce8";
+    self.appSecret = "xxxxxxxxxxxxxxxx";
 };
 
 ControllerQobuz.prototype.getConfigurationFiles = function () {
