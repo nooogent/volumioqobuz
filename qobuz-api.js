@@ -15,7 +15,7 @@ function QobuzApi(logger, appId, appSecret, userAuthToken) {
     self.qobuzBaseUri = "http://www.qobuz.com/api.json/0.2/";
     self.userAuthHeaderName = "X-User-Auth-Token";
     self.appIdHeaderName = "X-App-Id";
-};
+}
 
 QobuzApi.prototype.login = function (appId, username, password) {
 
@@ -50,7 +50,7 @@ QobuzApi.prototype.login = function (appId, username, password) {
                 defer.reject(new Error());
             }
         });
-        
+
     return defer.promise;
 };
 
@@ -144,11 +144,91 @@ QobuzApi.prototype.getTrack = function (trackId) {
     return self.makeQobuzRequest(params, "track/get");
 };
 
+QobuzApi.prototype.getFeaturedAlbums = function (type, genreId) {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'getFeaturedAlbums start');
+
+    var params = {};
+
+    if (genreId)
+        params.genre_id = genreId;
+
+    if (type) {
+        switch (type) {
+            case "new":
+                params.type = "new-releases";
+                break;
+            case "bestsellers":
+                params.type = "best-sellers";
+                break;
+            case "moststreamed":
+                params.type = "most-streamed";
+                break;
+            case "press":
+                params.type = "press-awards";
+                break;
+            case "editor":
+                params.type = "editor-picks";
+                break;
+            case "mostfeatured":
+                params.type = "most-featured";
+                break;
+            default:
+        }
+    }
+
+    self.logger.info('[' + Date.now() + '] ' + 'getFeaturedAlbums params: ' + JSON.stringify(params));
+
+    return self.makeQobuzRequest(params, "album/getFeatured");
+};
+
+QobuzApi.prototype.getFeaturedPlaylists = function (type, genreId) {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'getFeaturedPlaylists start');
+
+    var params = {};
+
+    if (genreId)
+        params.genre_id = genreId;
+
+    switch (type) {
+        case "public":
+            params.type = "last-created";
+            break;
+        case "editor":
+        default:
+            params.type = "editor-picks";
+    }
+
+    self.logger.info('[' + Date.now() + '] ' + 'getFeaturedPlaylists params: ' + JSON.stringify(params));
+
+    return self.makeQobuzRequest(params, "playlist/getFeatured");
+};
+
+QobuzApi.prototype.search = function (query, type) {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'search start');
+
+    var params = {
+        query: query
+    };
+
+    if (type)
+        params.type = type;
+
+    self.logger.info('[' + Date.now() + '] ' + 'search params: ' + JSON.stringify(params));
+
+    return self.makeQobuzRequest(params, "catalog/search");
+};
+
 QobuzApi.prototype.makeQobuzRequest = function (params, method) {
     var self = this;
 
     self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest start');
-    
+
     var defer = libQ.defer();
 
     var uri = self.qobuzBaseUri + method;
