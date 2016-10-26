@@ -1,0 +1,111 @@
+{
+  "page": {
+    "label": "TRANSLATE.QOBUZ_CONFIGURATION"
+  },
+  "sections": [
+    {
+      "id": "section_account_login",
+      "element": "section",
+      "label": "TRANSLATE.QOBUZ_ACCOUNT",
+      "icon": "fa-plug",
+      "description": "TRANSLATE.QOBUZ_ACCOUNT_LOGIN_DESC",
+      "onSave": {
+        "type": "controller",
+        "endpoint": "music_service/qobuz",
+        "method": "qobuzAccountLogin"
+      },
+      "saveButton": {
+        "label": "TRANSLATE.LOGIN",
+        "data": [
+          "username",
+          "password"
+        ]
+      },
+      "content": [
+        {
+          "id": "username",
+          "type": "text",
+          "element": "input",
+          "doc": "TRANSLATE.QOBUZ_USERNAME_DOC",
+          "label": "TRANSLATE.QOBUZ_USERNAME",
+          "value": ""
+        },
+        {
+          "id": "password",
+          "type": "password",
+          "element": "input",
+          "doc": "TRANSLATE.QOBUZ_PASSWORD_DOC",
+          "label": "TRANSLATE.QOBUZ_PASSWORD",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "id": "section_account_logout",
+      "element": "section",
+      "label": "TRANSLATE.QOBUZ_ACCOUNT",
+      "icon": "fa-plug",
+      "description": "TRANSLATE.QOBUZ_ACCOUNT_LOGOUT_DESC",
+      "content": [
+        {
+          "id": "logout",
+          "element": "button",
+          "label": "TRANSLATE.LOGOUT",
+          "onClick": {
+            "type": "controller",
+            "endpoint": "music_service/qobuz",
+            "method": "qobuzAccountLogout"
+          }
+        }
+      ]
+    },
+    {
+      "id": "section_settings",
+      "element": "section",
+      "label": "TRANSLATE.QOBUZ_SETTINGS",
+      "icon": "fa-plug",
+      "description": "TRANSLATE.QOBUZ_SETTINGS_DESC",
+      "onSave": {
+        "type": "controller",
+        "endpoint": "music_service/qobuz",
+        "method": "saveQobuzSettings"
+      },
+      "saveButton": {
+        "label": "TRANSLATE.SAVE",
+        "data": [
+          "max_bitrate"
+        ]
+      },
+      "content": [
+        {
+          "id": "max_bitrate",
+          "doc": "TRANSLATE.QOBUZ_MAX_BITRATE_DOC",
+          "label": "TRANSLATE.QOBUZ_MAX_BITRATE",
+          "element": "select",
+          "value": {
+            "value": 6,
+            "label": "CD - 16bits / 44.1kHz"
+          },
+          "options": [
+            {
+              "value": 5,
+              "label": "MP3 - 320 kbps"
+            },
+            {
+              "value": 6,
+              "label": "CD - 16bits / 44.1kHz"
+            },
+            {
+              "value": 7,
+              "label": "HiRes - 24bits / up to 96 kHz"
+            },
+            {
+              "value": 27,
+              "label": "HiRes - 24bits / up to 192 kHz"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

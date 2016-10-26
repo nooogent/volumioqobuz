@@ -1,0 +1,182 @@
+'use strict';
+
+var crypto = require('crypto');
+var libQ = require('kew');
+var unirest = require('unirest');
+
+module.exports = QobuzApi;
+
+function QobuzApi(logger, appId, appSecret, userAuthToken) {
+    var self = this;
+    self.logger = logger;
+    self.appId = appId;
+    self.appSecret = appSecret;
+    self.userAuthToken = userAuthToken;
+    self.qobuzBaseUri = "http://www.qobuz.com/api.json/0.2/";
+    self.userAuthHeaderName = "X-User-Auth-Token";
+    self.appIdHeaderName = "X-App-Id";
+};
+
+QobuzApi.prototype.login = function (appId, username, password) {
+
+    var self = this;
+
+    var defer = libQ.defer();
+
+    self.logger.info('[' + Date.now() + '] ' + 'login start: ' + username);
+
+    var params = {
+        'app_id': appId,
+        'password': self.getMd5Hash(password),
+        'username': username
+    };
+
+    self.logger.info('[' + Date.now() + '] ' + 'login params: ' + JSON.stringify(params));
+
+    var uri = self.qobuzBaseUri + "user/login";
+
+    self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest uri: ' + uri);
+
+    unirest
+        .get(uri)
+        .query(params)
+        .end(function (response) {
+            if (response.ok) {
+                self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest response: ' + JSON.stringify(response.body));
+                defer.resolve(response.body);
+            }
+            else {
+                self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest failed response: ' + JSON.stringify(response.body));
+                defer.reject(new Error());
+            }
+        });
+        
+    return defer.promise;
+};
+
+QobuzApi.prototype.getTrackUrl = function (trackId, formatId) {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'getTrackUrl start trackId: ' + trackId + ' formatId : ' + formatId);
+
+    var tsrequest = Math.floor(Date.now() / 1000);
+    self.logger.info('[' + Date.now() + '] ' + 'getTrackUrl generated ts: ' + tsrequest);
+
+    var params = {
+        'format_id': formatId,
+        'intent': 'stream',
+        'request_sig': self.getMd5Hash(
+            "trackgetFileUrl" +
+            "format_id" + formatId +
+            "intentstream" +
+            "track_id" + trackId +
+            tsrequest +
+            self.appSecret),
+        'request_ts': tsrequest,
+        'track_id': trackId
+    };
+    self.logger.info('[' + Date.now() + '] ' + 'getTrackUrl params: ' + JSON.stringify(params));
+
+    return self.makeQobuzRequest(params, "track/getFileUrl");
+};
+
+QobuzApi.prototype.getFavourites = function (favouriteType) {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'getFavourites start: ' + favouriteType);
+
+    var params = {
+        'type': favouriteType
+    };
+    self.logger.info('[' + Date.now() + '] ' + 'getFavourites params: ' + JSON.stringify(params));
+
+    return self.makeQobuzRequest(params, "favorite/getUserFavorites");
+};
+
+QobuzApi.prototype.getUserPlaylists = function () {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'getUserPlaylists start');
+
+    var params = {};
+    self.logger.info('[' + Date.now() + '] ' + 'getUserPlaylists params: ' + JSON.stringify(params));
+
+    return self.makeQobuzRequest(params, "playlist/getUserPlaylists");
+};
+
+QobuzApi.prototype.getAlbum = function (albumId) {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'getAlbum start: ' + albumId);
+
+    var params = {
+        'album_id': albumId
+    };
+    self.logger.info('[' + Date.now() + '] ' + 'getAlbum params: ' + JSON.stringify(params));
+
+    return self.makeQobuzRequest(params, "album/get");
+};
+
+QobuzApi.prototype.getPlaylist = function (playlistId) {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'getPlaylist start');
+
+    var params = {
+        'extra': 'tracks',
+        'playlist_id': playlistId
+    };
+    self.logger.info('[' + Date.now() + '] ' + 'getPlaylist params: ' + JSON.stringify(params));
+
+    return self.makeQobuzRequest(params, "playlist/get");
+};
+
+QobuzApi.prototype.getTrack = function (trackId) {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'getTrack start');
+
+    var params = {
+        'track_id': trackId
+    };
+    self.logger.info('[' + Date.now() + '] ' + 'getTrack params: ' + JSON.stringify(params));
+
+    return self.makeQobuzRequest(params, "track/get");
+};
+
+QobuzApi.prototype.makeQobuzRequest = function (params, method) {
+    var self = this;
+
+    self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest start');
+    
+    var defer = libQ.defer();
+
+    var uri = self.qobuzBaseUri + method;
+    self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest uri: ' + uri);
+
+    var headers = { [self.appIdHeaderName]: self.appId, [self.userAuthHeaderName]: self.userAuthToken };
+    self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest headers: ' + JSON.stringify(headers));
+
+    params.limit = 150;
+
+    unirest
+        .get(uri)
+        .headers(headers)
+        .query(params)
+        .end(function (response) {
+            if (response.ok) {
+                self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest response: ' + JSON.stringify(response.body));
+                defer.resolve(response.body);
+            }
+            else {
+                self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest failed response: ' + JSON.stringify(response.body));
+                defer.reject(new Error());
+            }
+        });
+
+    return defer.promise;
+};
+
+QobuzApi.prototype.getMd5Hash = function (str) {
+    return crypto.createHash('md5').update(str).digest("hex");
+};

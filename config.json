@@ -1,0 +1,23 @@
+
+{
+    "enabled": {
+        "type": "boolean",
+        "value": false
+    },
+    "username": {
+        "type": "string",
+        "value": ""
+    },
+    "password": {
+        "type": "string",
+        "value": ""
+    },
+    "user_auth_token": {
+        "type": "string",
+        "value": ""
+    },
+    "max_bitrate": {
+        "type": "number",
+        "value": 6
+    }
+}

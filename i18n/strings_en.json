@@ -1,0 +1,26 @@
+
+{
+    "QOBUZ_USERNAME": "Qobuz username",
+    "QOBUZ_USERNAME_DOC": "This is the username of your Qobuz account",
+    "QOBUZ_PASSWORD": "Qobuz password",
+    "QOBUZ_PASSWORD_DOC": "This is the password of your Qobuz account",
+    "QOBUZ_SETTINGS_DESC": "HiRes rates are only available to stream for users with a 'Sublime' subscription who have purchased the requested music in a HiRes format",
+    "QOBUZ_MAX_BITRATE": "Max Bit Rate",
+    "QOBUZ_MAX_BITRATE_DOC": "Specify max bit rate to use for tracks with multiple bit rate options available",
+    "QOBUZ_CONFIGURATION": "Qobuz Configuration",
+    "QOBUZ_ACCOUNT": "Qobuz account",
+    "QOBUZ_SETTINGS": "Qobuz settings",
+    "QOBUZ_ACCOUNT_LOGIN_DESC": "Log in with your Qobuz username and password. Please note that your password is not stored anywhere on Volumio.",
+    "QOBUZ_ACCOUNT_LOGOUT_DESC": "You are logged in as {0}. If you log out Qobuz will no longer function on this Volumio instance.",
+    "SAVE": "Save",
+    "LOGIN": "Login",
+    "LOGOUT": "Log Out",
+
+    "SEARCH_RESULTS": "Number of results",
+    "PLUGINS": "Last.fm",
+    "LAST_FM_USERNAME": "Last.fm username",
+    "LAST_FM_PASSWORD": "Last.fm password",
+    "SEARCH_SONGS_SECTION": "Qobuz songs",
+    "SEARCH_ALBUMS_SECTION": "Qobuz albums",
+    "SEARCH_ARTISTS_SECTION": "Qobuz artists"
+}
