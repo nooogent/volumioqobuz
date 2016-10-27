@@ -8,8 +8,8 @@ module.exports = QobuzService;
 
 function QobuzService(logger, appId, appSecret, userAuthToken) {
     var self = this;
-    self.logger = logger;
 
+    self.logger = logger;
     self.api = new qobuzApi(logger, appId, appSecret, userAuthToken);
 
     self.rootList = function () {
@@ -35,154 +35,84 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
     };
 
     self.favouriteAlbumsList = function () {
-        var defer = libQ.defer();
-        tryCache('qobuz/favourites/albums', favouriteAlbums)
-            .then(function (items) {
-                defer.resolve(navigation.populate(["list", "grid"], items, "qobuz"));
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return navigationItemList('qobuz/favourites/albums', favouriteAlbums, ["list", "grid"], "qobuz");
     };
 
     self.favouriteTracksList = function () {
-        var defer = libQ.defer();
-        tryCache('qobuz/favourites/tracks', favouriteTracks)
-            .then(function (items) {
-                defer.resolve(navigation.populate(["list"], items, "qobuz"));
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return navigationItemList('qobuz/favourites/tracks', favouriteTracks, ["list"], "qobuz");
     };
 
     self.userPlaylistsList = function () {
-        var defer = libQ.defer();
-        tryCache('qobuz/favourites/playlists', userPlaylists)
-            .then(function (items) {
-                defer.resolve(navigation.populate(["list", "grid"], items, "qobuz"));
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return navigationItemList('qobuz/favourites/playlists', userPlaylists, ["list", "grid"], "qobuz");
     };
 
     self.albumTracksList = function (albumId, prevUri) {
-        var defer = libQ.defer();
-        tryCache('qobuz/albumTracks/' + albumId, albumTracks.bind(self, albumId))
-            .then(function (items) {
-                defer.resolve(navigation.populate(["list"], items, prevUri));
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return navigationItemList('qobuz/albumTracks/' + albumId, albumTracks.bind(self, albumId), ["list"], prevUri);
     };
 
     self.playlistTracksList = function (playlistId, prevUri) {
-        var defer = libQ.defer();
-        tryCache('qobuz/playlistTracks/' + playlistId, playlistTracks.bind(self, playlistId))
-            .then(function (items) {
-                defer.resolve(navigation.populate(["list"], items, prevUri));
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return navigationItemList('qobuz/playlistTracks/' + playlistId, playlistTracks.bind(self, playlistId), ["list"], prevUri);
     };
 
     self.featuredAlbumsList = function (type, prevUri) {
-        var defer = libQ.defer();
-        tryCache('qobuz/' + type + '/albums/', featuredAlbums.bind(self, type))
-            .then(function (items) {
-                defer.resolve(navigation.populate(["list", "grid"], items, prevUri));
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return navigationItemList('qobuz/' + type + '/albums/', featuredAlbums.bind(self, type), ["list", "grid"], prevUri);
     };
 
     self.featuredPlaylistsList = function (type, prevUri) {
-        var defer = libQ.defer();
-        tryCache('qobuz/' + type + '/playlists/', featuredPlaylists.bind(self, type))
-            .then(function (items) {
-                defer.resolve(navigation.populate(["list", "grid"], items, prevUri));
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return navigationItemList('qobuz/' + type + '/playlists/', featuredPlaylists.bind(self, type), ["list", "grid"], prevUri);
     };
 
     self.search = function (query, type) {
-        var defer = libQ.defer();
-        search(query, type)
-            .then(function (items) {
-                defer.resolve(items);
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return search(query, type);
     };
 
     self.track = function (trackId, formatId) {
-        var defer = libQ.defer();
-        tryCache('qobuz/track/' + trackId, track.bind(self, trackId, formatId))
-            .then(function (item) {
-                defer.resolve(item);
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return trackList('qobuz/track/' + trackId, track.bind(self, trackId, formatId));
     };
 
     self.album = function (albumId, formatId) {
-        var defer = libQ.defer();
-        tryCache('qobuz/album/' + albumId, album.bind(self, albumId, formatId))
-            .then(function (items) {
-                defer.resolve(items);
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return trackList('qobuz/album/' + albumId, album.bind(self, albumId, formatId));
     };
 
     self.playlist = function (playlistId, formatId) {
-        var defer = libQ.defer();
-        tryCache('qobuz/playlist/' + playlistId, playlist.bind(self, playlistId, formatId))
-            .then(function (items) {
-                defer.resolve(items);
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-        return defer.promise;
+        return trackList('qobuz/playlist/' + playlistId, playlist.bind(self, playlistId, formatId));
     };
 
     var tryCache = function (cacheKey, apiCall) {
-        var defer = libQ.defer();
         self.logger.info('cache check');
-        try {
-            memoryCache.wrap(cacheKey, function () {
-                self.logger.info(cacheKey + ': not in cache');
-                return apiCall();
+
+        var defer = libQ.defer();
+
+        memoryCache.wrap(cacheKey, function () {
+            self.logger.info(cacheKey + ': not in cache');
+            return apiCall();
+        })
+            .then(function (items) {
+                self.logger.info(cacheKey + ': finished with cache');
+                //throw new Error('something happened');
+                defer.resolve(items);
             })
-                .then(function (items) {
-                    self.logger.info(cacheKey + ': finished with cache');
-                    defer.resolve(items);
-                });
-        } catch (e) {
-            self.logger.info(cacheKey + ': cache error' + e.message);
-            defer.reject(new Error());
-        }
+            .catch(function (e) {
+                self.logger.info(cacheKey + ': fail cache error');
+                defer.reject(e);
+            });
+
         return defer.promise;
+    };
+
+    var navigationItemList = function (cacheKey, dataGetter, navigationViews, prevUri) {
+        return tryCache(cacheKey, dataGetter)
+            .then(function (navigationItems) {
+                return navigation.populate(navigationViews, navigationItems, prevUri);
+            })
+        //.fail(function (e) {
+        //    self.logger.info('navigationItemList error');
+        //    libQ.reject(e);
+        //});
+    };
+
+    var trackList = function (cacheKey, dataGetter) {
+        return tryCache(cacheKey, dataGetter);
     };
 
     var favouriteAlbums = function () {
@@ -259,7 +189,6 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
                         return navigation.item('song', qobuzTrack.title, qobuzTrack.album.artist.name, qobuzTrack.album.title, qobuzTrack.album.image.small, '', 'qobuz/track/' + qobuzTrack.id);
                     });
                     resultLists.push({ type: 'title', title: 'Qobuz Tracks', availableListViews: ["list"], items: tracksList });
-
                 }
 
                 if (result.albums.items && result.albums.items.length > 0) {
