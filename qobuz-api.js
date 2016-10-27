@@ -204,7 +204,7 @@ QobuzApi.prototype.getFeaturedPlaylists = function (type, genreId) {
 
     self.logger.info('[' + Date.now() + '] ' + 'getFeaturedPlaylists params: ' + JSON.stringify(params));
 
-    return self.makeQobuzRequest(params, "playlist/getFeatured");
+    return self.makeQobuzRequest(params, "playlist/getFeatured", 100);
 };
 
 QobuzApi.prototype.search = function (query, type) {
@@ -224,7 +224,7 @@ QobuzApi.prototype.search = function (query, type) {
     return self.makeQobuzRequest(params, "catalog/search");
 };
 
-QobuzApi.prototype.makeQobuzRequest = function (params, method) {
+QobuzApi.prototype.makeQobuzRequest = function (params, method, limit) {
     var self = this;
 
     self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest start');
@@ -237,7 +237,7 @@ QobuzApi.prototype.makeQobuzRequest = function (params, method) {
     var headers = { [self.appIdHeaderName]: self.appId, [self.userAuthHeaderName]: self.userAuthToken };
     self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest headers: ' + JSON.stringify(headers));
 
-    params.limit = 150;
+    params.limit = limit || 150;
 
     unirest
         .get(uri)

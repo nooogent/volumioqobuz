@@ -4,8 +4,8 @@ var libQ = require('kew');
 var config = new (require('v-conf'))();
 var qobuzService = require('./qobuzService');
 
-// Define theControllerQobuz class
 module.exports = ControllerQobuz;
+
 function ControllerQobuz(context) {
     // This fixed variable will let us refer to 'this' object at deeper scopes
     var self = this;
@@ -56,7 +56,7 @@ ControllerQobuz.prototype.onStart = function () {
 
 ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
     var self = this;
-    self.logger.info('ControllerQobuz::handleBrowseUri: ' + curUri);
+    self.logger.info('ControllerQobuz::handleBrowseUri: "' + curUri +'"');
 
     var response;
     var uriParts = curUri.split('/');
@@ -74,7 +74,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
             }
         }
         else if (curUri.startsWith('qobuz/new/album')) {
-            if (curUri.startsWith('qobuz/new/albums/')) {
+            if (curUri === 'qobuz/new/albums') {
                 response = self.service.featuredAlbumsList("new", "qobuz");
             }
             else {
@@ -82,7 +82,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
             }
         }
         else if (curUri.startsWith('qobuz/bestsellers/album')) {
-            if (curUri.startsWith('qobuz/bestsellers/albums/')) {
+            if (curUri === 'qobuz/bestsellers/albums') {
                 response = self.service.featuredAlbumsList("bestsellers", "qobuz");
             }
             else {
@@ -90,7 +90,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
             }
         }
         else if (curUri.startsWith('qobuz/moststreamed/album')) {
-            if (curUri.startsWith('qobuz/moststreamed/albums/')) {
+            if (curUri === 'qobuz/moststreamed/albums') {
                 response = self.service.featuredAlbumsList("moststreamed", "qobuz");
             }
             else {
@@ -98,7 +98,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
             }
         }
         else if (curUri.startsWith('qobuz/press/album')) {
-            if (curUri.startsWith('qobuz/press/albums/')) {
+            if (curUri === 'qobuz/press/albums') {
                 response = self.service.featuredAlbumsList("press", "qobuz");
             }
             else {
@@ -106,7 +106,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
             }
         }
         else if (curUri.startsWith('qobuz/editor/album')) {
-            if (curUri.startsWith('qobuz/editor/albums/')) {
+            if (curUri === 'qobuz/editor/albums') {
                 response = self.service.featuredAlbumsList("editor", "qobuz");
             }
             else {
@@ -114,7 +114,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
             }
         }
         else if (curUri.startsWith('qobuz/mostfeatured/album')) {
-            if (curUri.startsWith('qobuz/mostfeatured/albums/')) {
+            if (curUri === 'qobuz/mostfeatured/albums') {
                 response = self.service.featuredAlbumsList("mostfeatured", "qobuz");
             }
             else {
@@ -284,7 +284,7 @@ ControllerQobuz.prototype.explodeUri = function (uri) {
     }
     else if (
         uri.startsWith('qobuz/favourites/album') ||
-        uri.startsWith('qobuz/news/album') ||
+        uri.startsWith('qobuz/new/album') ||
         uri.startsWith('qobuz/bestsellers/album') ||
         uri.startsWith('qobuz/moststreamed/album') ||
         uri.startsWith('qobuz/press/album') ||
@@ -303,6 +303,23 @@ ControllerQobuz.prototype.explodeUri = function (uri) {
                 defer.reject(new Error());
             });
     }
+    else if (
+        uri.startsWith('qobuz/favourites/playlist') ||
+        uri.startsWith('qobuz/editor/playlist') ||
+        uri.startsWith('qobuz/public/playlist')) {
+
+        var playlistId = uri.split('/')[3];
+        self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri playlistId: ' + playlistId);
+
+        self.service.playlist(playlistId, self.samplerate)
+            .then(function (result) {
+                defer.resolve(result);
+            })
+            .fail(function (e) {
+                self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri playlist failed');
+                defer.reject(new Error());
+            });
+    }
     else {
         self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri no uri pattern matched');
     }
@@ -317,11 +334,11 @@ ControllerQobuz.prototype.search = function (query) {
     self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::search start query: ' + query);
 
     var defer = libQ.defer();
-    if (!query || query.length === 0) {
+    if (!query || !query.value || query.value.length === 0) {
         defer.resolve([]);
     }
     else {
-        self.service.search(query)
+        self.service.search(query.value)
             .then(function (result) {
                 defer.resolve(result);
             })
