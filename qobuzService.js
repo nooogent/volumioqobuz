@@ -9,44 +9,38 @@ module.exports = QobuzService;
 function QobuzService(logger, appId, appSecret, userAuthToken) {
     var self = this;
 
-    self.logger = logger;
-    self.api = new qobuzApi(logger, appId, appSecret, userAuthToken);
+    var logger = logger;
+    var api = new qobuzApi(logger, appId, appSecret, userAuthToken);
 
     self.rootList = function () {
-        var root = navigation.populate(
-            ["list"],
-            [
-                navigation.navigationFolder("My Albums", "qobuz/favourites/albums"),
-                navigation.navigationFolder("My Tracks", "qobuz/favourites/tracks"),
-                navigation.navigationFolder("My Playlists", "qobuz/favourites/playlists"),
-                navigation.navigationFolder("My Purchases", "qobuz/purchases"),
-                navigation.navigationFolder("Qobuz Playlists", "qobuz/editor/playlists"),
-                navigation.navigationFolder("New Releases", "qobuz/new/albums"),
-                navigation.navigationFolder("Best Sellers", "qobuz/bestsellers/albums"),
-                navigation.navigationFolder("Most Streamed", "qobuz/moststreamed/albums"),
-                navigation.navigationFolder("Press Awards", "qobuz/press/albums"),
-                navigation.navigationFolder("Selected by Qobuz", "qobuz/editor/albums"),
-                navigation.navigationFolder("Selected by the Media", "qobuz/mostfeatured/albums")
-            ],
-            "/");
-
-        self.logger.info('rootList nav: ' + JSON.stringify(root));
-
-        return libQ.resolve(root);
+        return libQ.resolve(
+            navigation.browse(
+                ["list"],
+                [
+                    navigation.navigationFolder("My Albums", "qobuz/favourites/albums"),
+                    navigation.navigationFolder("My Tracks", "qobuz/favourites/tracks"),
+                    navigation.navigationFolder("My Playlists", "qobuz/favourites/playlists"),
+                    navigation.navigationFolder("My Purchases", "qobuz/purchases"),
+                    navigation.navigationFolder("Qobuz Playlists", "qobuz/editor/playlists"),
+                    navigation.navigationFolder("New Releases", "qobuz/new/albums"),
+                    navigation.navigationFolder("Best Sellers", "qobuz/bestsellers/albums"),
+                    navigation.navigationFolder("Most Streamed", "qobuz/moststreamed/albums"),
+                    navigation.navigationFolder("Press Awards", "qobuz/press/albums"),
+                    navigation.navigationFolder("Selected by Qobuz", "qobuz/editor/albums"),
+                    navigation.navigationFolder("Selected by the Media", "qobuz/mostfeatured/albums")
+                ],
+                "/"));
     };
 
     self.purchaseTypesList = function () {
-        var purchaseTypes = navigation.populate(
-            ["list"],
-            [
-                navigation.navigationFolder("Albums", "qobuz/purchases/albums"),
-                navigation.navigationFolder("Tracks", "qobuz/purchases/tracks")
-            ],
-            "qobuz/purchases");
-
-        self.logger.info('rootList purchaseTypes: ' + JSON.stringify(purchaseTypes));
-
-        return libQ.resolve(purchaseTypes);
+        return libQ.resolve(
+            navigation.browse(
+                ["list"],
+                [
+                    navigation.navigationFolder("Albums", "qobuz/purchases/albums"),
+                    navigation.navigationFolder("Tracks", "qobuz/purchases/tracks")
+                ],
+                "qobuz/purchases"));
     };
 
     self.favouriteAlbumsList = function () {
@@ -98,18 +92,18 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
     };
 
     var tryCache = function (cacheKey, apiCall) {
-        self.logger.info('cache check');
+        logger.info('cache check');
 
         return libQ.resolve(memoryCache.wrap(cacheKey, function () {
-            self.logger.info(cacheKey + ': not in cache');
+            logger.info(cacheKey + ': not in cache');
             return apiCall();
         }))
             .then(function (items) {
-                self.logger.info(cacheKey + ': finished with cache');
+                logger.info(cacheKey + ': finished with cache');
                 return items;
             })
             .fail(function (e) {
-                self.logger.info(cacheKey + ': fail cache error');
+                logger.info(cacheKey + ': fail cache error');
                 return libQ.reject(new Error());
             });
     };
@@ -117,12 +111,8 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
     var navigationItemList = function (cacheKey, dataGetter, navigationViews, prevUri) {
         return tryCache(cacheKey, dataGetter)
             .then(function (navigationItems) {
-                return navigation.populate(navigationViews, navigationItems, prevUri);
-            })
-        //.fail(function (e) {
-        //    self.logger.info('navigationItemList error');
-        //    libQ.reject(e);
-        //});
+                return navigation.browse(navigationViews, navigationItems, prevUri);
+            });
     };
 
     var trackList = function (cacheKey, dataGetter) {
@@ -130,239 +120,172 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
     };
 
     var favouriteAlbums = function () {
-        return self.api.getFavourites("albums")
-            .then(function (result) {
-                return result.albums.items.map(function (qobuzAlbum) {
-                    var title = qobuzAlbum.title + ' (' + new Date(qobuzAlbum.released_at * 1000).getFullYear() + ')';
-                    return navigation.item("folder", title, qobuzAlbum.artist.name, "", qobuzAlbum.image.small, '', "qobuz/favourites/album/" + qobuzAlbum.id);
-                });
-            });
+        return api.getFavourites("albums")
+            .then(qobuzAlbumsToNavItems.bind(self, "qobuz/favourites/album/"));
     };
 
     var favouriteTracks = function () {
-        return self.api.getFavourites("tracks")
-            .then(function (result) {
-                return result.tracks.items.map(function (qobuzTrack) {
-                    return navigation.track(qobuzTrack.title, qobuzTrack.album.artist.name, qobuzTrack.album.title, "qobuz/track/" + qobuzTrack.id);
-                });
-            });
+        return api.getFavourites("tracks")
+            .then(qobuzTracksToNavItems);
     };
 
     var userPlaylists = function () {
-        return self.api.getUserPlaylists()
-            .then(function (result) {
-                return result.playlists.items.map(function (qobuzPlaylist) {
-                    return navigation.item("folder", qobuzPlaylist.name, qobuzPlaylist.owner.name, qobuzPlaylist.description, qobuzPlaylist.images[0], "", "qobuz/favourites/playlist/" + qobuzPlaylist.id);
-                });
-            });
+        return api.getUserPlaylists()
+            .then(qobuzPlaylistsToNavItems.bind(self, "qobuz/favourites/playlist/"));
     };
 
     var albumTracks = function (albumId) {
-        return self.api.getAlbum(albumId)
-            .then(function (result) {
-                return result.tracks.items.map(function (qobuzTrack) {
-                    return navigation.track(qobuzTrack.title, result.artist.name, result.title, "qobuz/track/" + qobuzTrack.id);
-                });
-            });
+        return api.getAlbum(albumId)
+            .then(qobuzAlbumTracksToNavItems);
     };
 
     var playlistTracks = function (playlistId) {
-        return self.api.getPlaylist(playlistId)
-            .then(function (result) {
-                return result.tracks.items.map(function (qobuzTrack) {
-                    return navigation.track(qobuzTrack.title, qobuzTrack.album.artist.name, qobuzTrack.album.title, "qobuz/track/" + qobuzTrack.id);
-                });
-            });
+        return api.getPlaylist(playlistId)
+            .then(qobuzTracksToNavItems);
     };
 
     var featuredAlbums = function (type) {
-        return self.api.getFeaturedAlbums(type)
-            .then(function (result) {
-                return result.albums.items.map(function (qobuzAlbum) {
-                    var title = qobuzAlbum.title + ' (' + new Date(qobuzAlbum.released_at * 1000).getFullYear() + ')';
-                    return navigation.item("folder", title, qobuzAlbum.artist.name, "", qobuzAlbum.image.small, '', "qobuz/" + type + "/album/" + qobuzAlbum.id);
-                });
-            });
+        return api.getFeaturedAlbums(type)
+            .then(qobuzAlbumsToNavItems.bind(self, "qobuz/" + type + "/album/"));
     };
 
     var featuredPlaylists = function (type) {
-        return self.api.getFeaturedPlaylists(type)
-            .then(function (result) {
-                return result.playlists.items.map(function (qobuzPlaylist) {
-                    return navigation.item("folder", qobuzPlaylist.name, qobuzPlaylist.owner.name, qobuzPlaylist.description, qobuzPlaylist.images[0], "", "qobuz/" + type + "/playlist/" + qobuzPlaylist.id);
-                });
-            });
+        return api.getFeaturedPlaylists(type)
+            .then(qobuzPlaylistsToNavItems.bind(self, "qobuz/" + type + "/playlist/"));
     };
 
     var purchases = function (type) {
-        return self.api.getPurchases()
+        return api.getPurchases()
             .then(function (result) {
-                if(type == "albums")
-                    return result.albums.items.map(function (qobuzAlbum) {
-                            var title = qobuzAlbum.title + ' (' + new Date(qobuzAlbum.released_at * 1000).getFullYear() + ')';
-                            return navigation.item("folder", title, qobuzAlbum.artist.name, "", qobuzAlbum.image.small, '', "qobuz/purchases/album/" + qobuzAlbum.id);
-                        });
-                else
-                    return result.tracks.items.map(function (qobuzTrack) {
-                            return navigation.item('song', qobuzTrack.title, qobuzTrack.album.artist.name, qobuzTrack.album.title, qobuzTrack.album.image.small, '', 'qobuz/track/' + qobuzTrack.id);
-                        });
-
-                return purchaseTypeLists;
+                return type === "albums" ? qobuzAlbumsToNavItems("qobuz/purchases/album/", result) : qobuzTracksToNavItems(result);
             });
     };
 
     var search = function (query, type) {
-        return self.api.search(query, type)
+        return api.search(query, type)
             .then(function (result) {
-                var resultLists = [];
-                if (result.tracks.items && result.tracks.items.length > 0) {
-                    var tracksList = result.tracks.items.map(function (qobuzTrack) {
-                        return navigation.item('song', qobuzTrack.title, qobuzTrack.album.artist.name, qobuzTrack.album.title, qobuzTrack.album.image.small, '', 'qobuz/track/' + qobuzTrack.id);
-                    });
-                    resultLists.push({ type: 'title', title: 'Qobuz Tracks', availableListViews: ["list"], items: tracksList });
-                }
-
-                if (result.albums.items && result.albums.items.length > 0) {
-                    var albumsList = result.albums.items.map(function (qobuzAlbum) {
-                        var title = qobuzAlbum.title + ' (' + new Date(qobuzAlbum.released_at * 1000).getFullYear() + ')';
-                        return navigation.item('folder', title, qobuzAlbum.artist.name, '', qobuzAlbum.image.small, '', 'qobuz/album/' + qobuzAlbum.id);
-                    });
-                    resultLists.push({ type: 'title', title: 'Qobuz Albums', availableListViews: ["list", "grid"], items: albumsList });
-                }
-
-                if (result.playlists.items && result.playlists.items.length > 0) {
-                    var playlistsList = result.playlists.items.map(function (qobuzPlaylist) {
-                        return navigation.item("folder", qobuzPlaylist.name, qobuzPlaylist.owner.name, qobuzPlaylist.description, qobuzPlaylist.images[0], "", "qobuz/playlist/" + qobuzPlaylist.id);
-                    });
-                    resultLists.push({ type: 'title', title: 'Qobuz Playlists', availableListViews: ["list, grid"], items: playlistsList });
-                }
-
-                return resultLists;
+                return [
+                    navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/album/", result), "title", "Qobuz Albums"),
+                    navigation.searchResults(["list"], qobuzTracksToNavItems(result), "title", "Qobuz Tracks"),
+                    navigation.searchResults(["list", "grid"], qobuzPlaylistsToNavItems("qobuz/playlist/", result), "title", "Qobuz Playlists")
+                ];
             });
+    };
+
+    var qobuzAlbumsToNavItems = function (uriRoot, qobuzResult) {
+        if (!qobuzResult || !qobuzResult.albums || !qobuzResult.albums.items)
+            return [];
+
+        return qobuzResult.albums.items.map(function (qobuzAlbum) {
+            var title = qobuzAlbum.title + ' (' + new Date(qobuzAlbum.released_at * 1000).getFullYear() + ')';
+            return navigation.item('folder', title, qobuzAlbum.artist.name, "", qobuzAlbum.image.small, "", uriRoot + qobuzAlbum.id);
+        });
+    };
+
+    var qobuzPlaylistsToNavItems = function (uriRoot, qobuzResult) {
+        if (!qobuzResult || !qobuzResult.playlists || !qobuzResult.playlists.items)
+            return [];
+
+        return qobuzResult.playlists.items.map(function (qobuzPlaylist) {
+            return navigation.item("folder", qobuzPlaylist.name, qobuzPlaylist.owner.name, qobuzPlaylist.description, qobuzPlaylist.images[0], "", uriRoot + qobuzPlaylist.id);
+        });
+    };
+
+    var qobuzTracksToNavItems = function (qobuzResult) {
+        if (!qobuzResult || !qobuzResult.tracks || !qobuzResult.tracks.items)
+            return [];
+
+        return qobuzResult.tracks.items.map(function (qobuzTrack) {
+            return navigation.item('song', qobuzTrack.title, qobuzTrack.album.artist.name, qobuzTrack.album.title, qobuzTrack.album.image.small, "", "qobuz/track/" + qobuzTrack.id);
+        });
+    };
+
+    var qobuzAlbumTracksToNavItems = function (qobuzAlbum) {
+        if (!qobuzAlbum || !qobuzAlbum.tracks || !qobuzAlbum.tracks.items)
+            return [];
+
+        return qobuzAlbum.tracks.items.map(function (qobuzTrack) {
+            return navigation.item('song', qobuzTrack.title, qobuzAlbum.artist.name, qobuzAlbum.title, qobuzAlbum.image.small, "", "qobuz/track/" + qobuzTrack.id);
+        });
+    };
+
+    var qobuzResultToTrack = function (track, trackUrl, album) {
+        return {
+            service: 'qobuz',
+            type: 'track',
+            name: track.title,
+            title: track.title + '?',
+            artist: album.artist.name,
+            album: album.title,
+            duration: track.duration,
+            albumart: album.image.small,
+            uri: trackUrl.url,
+            samplerate: trackUrl.sampling_rate,
+            bitdepth: trackUrl.bit_depth + ' bit',
+            trackType: trackUrl.mime_type //.split('/')[1];
+        };
     };
 
     var track = function (trackId, formatId) {
-        var defer = libQ.defer();
-
-        var promises = [
-            self.api.getTrack(trackId),
-            self.api.getTrackUrl(trackId, formatId)
-        ];
-
-        libQ.all(promises)
+        return libQ.all(
+            [
+                api.getTrack(trackId),
+                api.getTrackUrl(trackId, formatId)
+            ])
             .then(function (results) {
-                defer.resolve(
-                    {
-                        service: 'qobuz',
-                        type: 'track',
-                        name: results[0].title,
-                        title: results[0].title + '?',
-                        artist: results[0].album.artist.name,
-                        album: results[0].album.title,
-                        duration: results[0].duration,
-                        albumart: results[0].album.image.small,
-                        uri: results[1].url,
-                        samplerate: results[1].sampling_rate,
-                        bitdepth: results[1].bit_depth + ' bit',
-                        trackType: results[1].mime_type //.split('/')[1];
-                    }
-                );
+                return qobuzResultToTrack(results[0], results[0].album, results[1]);
             })
             .fail(function (e) {
-                defer.reject(new Error());
+                libQ.reject(new Error());
             });
-
-        return defer.promise;
     };
 
     var album = function (albumId, formatId) {
-        var defer = libQ.defer();
-
-        self.api.getAlbum(albumId)
+        return api.getAlbum(albumId)
             .then(function (result) {
                 libQ.all(
                     result.tracks.items.map(function (qobuzTrack) {
-                        return self.api.getTrackUrl(qobuzTrack.id, formatId);
+                        return api.getTrackUrl(qobuzTrack.id, formatId);
                     }))
                     .then(function (urlResults) {
-                        defer.resolve(
-                            result.tracks.items.map(function (qobuzTrack, i) {
-                                return {
-                                    service: 'qobuz',
-                                    type: 'track',
-                                    name: qobuzTrack.title,
-                                    title: qobuzTrack.title + '?',
-                                    artist: result.artist.name,
-                                    album: result.title,
-                                    duration: qobuzTrack.duration,
-                                    albumart: result.image.small,
-                                    uri: urlResults[i].url,
-                                    samplerate: urlResults[i].sampling_rate,
-                                    bitdepth: urlResults[i].bit_depth + ' bit',
-                                    trackType: urlResults[i].mime_type //.split('/')[1];
-                                };
-                            })
-                        );
+                        return result.tracks.items.map(function (qobuzTrack, i) {
+                            return qobuzResultToTrack(qobuzTrack, result, urlResults[i]);
+                        });
                     });
             })
-            .fail(function (e) { defer.reject(new Error()); });
-
-        return defer.promise;
+            .fail(function (e) { libQ.reject(new Error()); });
     };
 
     var playlist = function (playlistId, formatId) {
-        var defer = libQ.defer();
-
-        self.api.getPlaylist(playlistId)
+        return api.getPlaylist(playlistId)
             .then(function (result) {
                 libQ.all(
                     result.tracks.items.map(function (qobuzTrack) {
-                        return self.api.getTrackUrl(qobuzTrack.id, formatId);
+                        return api.getTrackUrl(qobuzTrack.id, formatId);
                     }))
                     .then(function (urlResults) {
-                        defer.resolve(
-                            result.tracks.items.map(function (qobuzTrack, i) {
-                                return {
-                                    service: 'qobuz',
-                                    type: 'track',
-                                    name: qobuzTrack.title,
-                                    title: qobuzTrack.title + '?',
-                                    artist: qobuzTrack.album.artist.name,
-                                    album: qobuzTrack.album.title,
-                                    duration: qobuzTrack.duration,
-                                    albumart: qobuzTrack.album.image.small,
-                                    uri: urlResults[i].url,
-                                    samplerate: urlResults[i].sampling_rate,
-                                    bitdepth: urlResults[i].bit_depth + ' bit',
-                                    trackType: urlResults[i].mime_type //.split('/')[1];
-                                };
-                            })
-                        );
+                        return result.tracks.items.map(function (qobuzTrack, i) {
+                            return qobuzResultToTrack(qobuzTrack, result, urlResults[i]);
+                        });
                     });
             })
-            .fail(function (e) { defer.reject(new Error()); });
-
-        return defer.promise;
+            .fail(function (e) { libQ.reject(new Error()); });
     };
 }
 
 QobuzService.prototype.login = function (logger, appId, username, password) {
-    var defer = libQ.defer();
-
     if (!username || username.length === 0 || !password || password.length === 0)
-        defer.reject(new Error());
-    else {
-        new qobuzApi(logger)
-            .login(appId, username, password)
-            .then(function (result) {
-                if (result.user_auth_token && result.user_auth_token.length > 0) {
-                    defer.resolve(result.user_auth_token);
-                }
-                else {
-                    defer.reject(new Error());
-                }
-            })
-            .fail(function (e) { defer.reject(new Error()); });
-    }
-    return defer.promise;
+        return libQ.reject(new Error());
+
+    return new qobuzApi(logger)
+        .login(appId, username, password)
+        .then(function (result) {
+            if (result.user_auth_token && result.user_auth_token.length > 0) {
+                return result.user_auth_token;
+            }
+            else {
+                libQ.reject(new Error());
+            }
+        })
+        .fail(function (e) { libQ.reject(new Error()); });
 };

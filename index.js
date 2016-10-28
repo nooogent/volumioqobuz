@@ -56,7 +56,7 @@ ControllerQobuz.prototype.onStart = function () {
 
 ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
     var self = this;
-    self.logger.info('ControllerQobuz::handleBrowseUri: "' + curUri +'"');
+    self.logger.info('ControllerQobuz::handleBrowseUri: "' + curUri + '"');
 
     var response;
     var uriParts = curUri.split('/');
@@ -146,14 +146,14 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         else if (curUri.startsWith('qobuz/playlist')) {
             response = self.service.playlistTracksList(uriParts[2], 'qobuz');
         }
-        else if(curUri.startsWith('qobuz/purchases')){
+        else if (curUri.startsWith('qobuz/purchases')) {
             if (curUri === 'qobuz/purchases') {
                 response = self.service.purchaseTypesList();
             }
-            else if(curUri === 'qobuz/purchases/tracks'){
+            else if (curUri === 'qobuz/purchases/tracks') {
                 response = self.service.purchasesList('tracks');
             }
-            else if(curUri.startsWith('qobuz/purchases/album')){
+            else if (curUri.startsWith('qobuz/purchases/album')) {
                 if (curUri === 'qobuz/purchases/albums') {
                     response = self.service.purchasesList('albums');
                 }
@@ -163,7 +163,11 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
             }
         }
     }
-    return response;
+    return response
+        .fail(function (e) {
+            self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::handleBrowseUri failed');
+            libQ.reject(new Error());
+        });
 };
 
 // Controller functions
@@ -224,22 +228,18 @@ ControllerQobuz.prototype.seek = function (position) {
     return self.mpdPlugin.seek(position);
 };
 
-ControllerQobuz.prototype.onRestart = function () {
-};
+ControllerQobuz.prototype.onRestart = function () { };
 
-ControllerQobuz.prototype.onInstall = function () {
-};
+ControllerQobuz.prototype.onInstall = function () { };
 
-ControllerQobuz.prototype.onUninstall = function () {
-};
+ControllerQobuz.prototype.onUninstall = function () { };
 
 ControllerQobuz.prototype.getUIConfig = function () {
-    var defer = libQ.defer();
     var self = this;
 
     var lang_code = this.commandRouter.sharedVars.get('language_code');
 
-    self.commandRouter.i18nJson(__dirname + '/i18n/strings_' + lang_code + '.json',
+    return self.commandRouter.i18nJson(__dirname + '/i18n/strings_' + lang_code + '.json',
         __dirname + '/i18n/strings_en.json',
         __dirname + '/UIConfig.json')
         .then(function (uiconf) {
@@ -266,23 +266,18 @@ ControllerQobuz.prototype.getUIConfig = function () {
 
             uiconf.sections.splice(indexOfSectionToRemove, 1);
 
-            defer.resolve(uiconf);
+            return uiconf;
         })
         .fail(function () {
-            defer.reject(new Error());
+            libQ.reject(new Error());
         });
-
-    return defer.promise;
 };
 
-ControllerQobuz.prototype.setUIConfig = function (data) {
-};
+ControllerQobuz.prototype.setUIConfig = function (data) { };
 
-ControllerQobuz.prototype.getConf = function (varName) {
-};
+ControllerQobuz.prototype.getConf = function (varName) { };
 
-ControllerQobuz.prototype.setConf = function (varName, varValue) {
-};
+ControllerQobuz.prototype.setConf = function (varName, varValue) { };
 
 ControllerQobuz.prototype.explodeUri = function (uri) {
 
@@ -338,21 +333,13 @@ ControllerQobuz.prototype.search = function (query) {
 
     self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::search start query: ' + query);
 
-    var defer = libQ.defer();
-    if (!query || !query.value || query.value.length === 0) {
-        defer.resolve([]);
-    }
-    else {
-        self.service.search(query.value)
-            .then(function (result) {
-                defer.resolve(result);
-            })
-            .fail(function (e) {
-                defer.reject(new Error());
-            });
-    }
+    if (!query || !query.value || query.value.length === 0)
+        return libQ.resolve([]);
 
-    return defer.promise;
+    return self.service.search(query.value)
+        .fail(function (e) {
+            libQ.reject(new Error());
+        });
 };
 
 ControllerQobuz.prototype.initialiseService = function () {
@@ -363,9 +350,7 @@ ControllerQobuz.prototype.initialiseService = function () {
 ControllerQobuz.prototype.qobuzAccountLogin = function (data) {
     var self = this;
 
-    var defer = libQ.defer();
-
-    qobuzService
+    return qobuzService
         .login(self.commandRouter.logger, self.appId, data["username"], data["password"])
         .then(function (result) {
             //update config
@@ -378,14 +363,11 @@ ControllerQobuz.prototype.qobuzAccountLogin = function (data) {
 
             //celebrate great success!
             self.commandRouter.pushToastMessage('success', "Qobuz Account Login", 'You have been successsfully logged in to your Qobuz account');
-            defer.resolve({});
         })
         .fail(function (e) {
             self.commandRouter.pushToastMessage('failure', "Qobuz Account Login", 'Qobuz account login failed.');
-            defer.reject(new Error());
+            libQ.reject(new Error());
         });
-
-    return defer.promise;
 };
 
 ControllerQobuz.prototype.qobuzAccountLogout = function () {

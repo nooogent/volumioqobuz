@@ -36,7 +36,7 @@ http.createServer(function (req, res) {
 
         var actionParts = queryData.action.split('|');
         var action = actionParts.shift();
-        var parsedActionParts = actionParts.map(function(param){return param.charAt(0)=='{' ? JSON.parse(param) : param;});
+        var parsedActionParts = actionParts.map(function(param){return param.charAt(0)==='{' ? JSON.parse(param) : param;});
         
         vqInstance[action].apply(vqInstance, parsedActionParts)
             //.search({ value: 'thriller', type: 'any' })

@@ -3,26 +3,25 @@
 module.exports = Navigation;
 
 function Navigation() {
-    
-    var nav = {
-        navigation: {
-            lists: [
-                {
-                    "availableListViews": [],
-                    "items": []
+
+    var browse = function (views, items, prevUri) {
+        return {
+            navigation: {
+                lists: [
+                    {
+                        "availableListViews": views,
+                        "items": items
+                    }
+                ],
+                "prev": {
+                    uri: prevUri
                 }
-            ],
-            "prev": {
-                uri: ""
             }
-        }
+        };
     };
 
-    var populate = function (views, items, prevUri) {
-        nav.navigation.lists[0].availableListViews = views;
-        nav.navigation.lists[0].items = items;
-        nav.navigation.prev.uri = prevUri;
-        return nav;
+    var searchResults = function (views, items, type, title) {
+        return { type: type, title: title, availableListViews: views, items: items };
     };
 
     var item = function (type, title, artist, album, albumart, icon, uri) {
@@ -51,10 +50,11 @@ function Navigation() {
     };
 
     return {
-        populate: populate,
+        browse: browse,
+        searchResults: searchResults,
         item: item,
         folder: folder,
         track: track,
         navigationFolder: navigationFolder
     };
-};
+}
