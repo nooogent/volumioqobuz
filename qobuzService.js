@@ -19,6 +19,7 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
                 navigation.navigationFolder("My Albums", "qobuz/favourites/albums"),
                 navigation.navigationFolder("My Tracks", "qobuz/favourites/tracks"),
                 navigation.navigationFolder("My Playlists", "qobuz/favourites/playlists"),
+                navigation.navigationFolder("My Purchases", "qobuz/purchases"),
                 navigation.navigationFolder("Qobuz Playlists", "qobuz/editor/playlists"),
                 navigation.navigationFolder("New Releases", "qobuz/new/albums"),
                 navigation.navigationFolder("Best Sellers", "qobuz/bestsellers/albums"),
@@ -32,6 +33,20 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
         self.logger.info('rootList nav: ' + JSON.stringify(root));
 
         return libQ.resolve(root);
+    };
+
+    self.purchaseTypesList = function () {
+        var purchaseTypes = navigation.populate(
+            ["list"],
+            [
+                navigation.navigationFolder("Albums", "qobuz/purchases/albums"),
+                navigation.navigationFolder("Tracks", "qobuz/purchases/tracks")
+            ],
+            "qobuz/purchases");
+
+        self.logger.info('rootList purchaseTypes: ' + JSON.stringify(purchaseTypes));
+
+        return libQ.resolve(purchaseTypes);
     };
 
     self.favouriteAlbumsList = function () {
@@ -62,6 +77,10 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
         return navigationItemList('qobuz/' + type + '/playlists/', featuredPlaylists.bind(self, type), ["list", "grid"], prevUri);
     };
 
+    self.purchasesList = function (type) {
+        return navigationItemList('qobuz/purchases/' + type, purchases.bind(self, type), ["list", "grid"], 'qobuz/purchases');
+    };
+
     self.search = function (query, type) {
         return search(query, type);
     };
@@ -81,23 +100,18 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
     var tryCache = function (cacheKey, apiCall) {
         self.logger.info('cache check');
 
-        var defer = libQ.defer();
-
-        memoryCache.wrap(cacheKey, function () {
+        return libQ.resolve(memoryCache.wrap(cacheKey, function () {
             self.logger.info(cacheKey + ': not in cache');
             return apiCall();
-        })
+        }))
             .then(function (items) {
                 self.logger.info(cacheKey + ': finished with cache');
-                //throw new Error('something happened');
-                defer.resolve(items);
+                return items;
             })
-            .catch(function (e) {
+            .fail(function (e) {
                 self.logger.info(cacheKey + ': fail cache error');
-                defer.reject(e);
+                return libQ.reject(new Error());
             });
-
-        return defer.promise;
     };
 
     var navigationItemList = function (cacheKey, dataGetter, navigationViews, prevUri) {
@@ -177,6 +191,23 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
                 return result.playlists.items.map(function (qobuzPlaylist) {
                     return navigation.item("folder", qobuzPlaylist.name, qobuzPlaylist.owner.name, qobuzPlaylist.description, qobuzPlaylist.images[0], "", "qobuz/" + type + "/playlist/" + qobuzPlaylist.id);
                 });
+            });
+    };
+
+    var purchases = function (type) {
+        return self.api.getPurchases()
+            .then(function (result) {
+                if(type == "albums")
+                    return result.albums.items.map(function (qobuzAlbum) {
+                            var title = qobuzAlbum.title + ' (' + new Date(qobuzAlbum.released_at * 1000).getFullYear() + ')';
+                            return navigation.item("folder", title, qobuzAlbum.artist.name, "", qobuzAlbum.image.small, '', "qobuz/purchases/album/" + qobuzAlbum.id);
+                        });
+                else
+                    return result.tracks.items.map(function (qobuzTrack) {
+                            return navigation.item('song', qobuzTrack.title, qobuzTrack.album.artist.name, qobuzTrack.album.title, qobuzTrack.album.image.small, '', 'qobuz/track/' + qobuzTrack.id);
+                        });
+
+                return purchaseTypeLists;
             });
     };
 

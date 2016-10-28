@@ -8,7 +8,7 @@ http.createServer(function (req, res) {
 
     var queryData = url.parse(req.url, true).query;
 
-    if (queryData.vqurl) {
+    if (queryData.action) {
         var log = function (message) {
             console.log(message);
         };
@@ -28,15 +28,18 @@ http.createServer(function (req, res) {
         var vqInstance = new vq(context);
         vqInstance.samplerate = 6;
         vqInstance.userAuthToken = "RF8MA35J1XE0-OmLWybpyo5neUqVU3I541lok39THQfRyGPzlMOB-iPGf-ZKn0T0qep01bFWSoCMh2HeQWZ6cg";
-        vqInstance.appId = "214748364"; //"285473059"
+        vqInstance.appId = "214748364";//"285473059"; //; 
         vqInstance.appSecret = "";
         vqInstance.initialiseService();
 
         res.writeHead(200, { 'Content-Type': 'text/plain' });
 
-        vqInstance
+        var actionParts = queryData.action.split('|');
+        var action = actionParts.shift();
+        var parsedActionParts = actionParts.map(function(param){return param.charAt(0)=='{' ? JSON.parse(param) : param;});
+        
+        vqInstance[action].apply(vqInstance, parsedActionParts)
             //.search({ value: 'thriller', type: 'any' })
-            .handleBrowseUri(queryData.vqurl)
                 .then(function (results) {
                     res.end(JSON.stringify(results) + '\n');
                 })

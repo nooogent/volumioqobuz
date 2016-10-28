@@ -207,6 +207,14 @@ QobuzApi.prototype.getFeaturedPlaylists = function (type, genreId) {
     return self.makeQobuzRequest(params, "playlist/getFeatured", 100);
 };
 
+QobuzApi.prototype.getPurchases = function () {
+
+    var self = this;
+    self.logger.info('[' + Date.now() + '] ' + 'getPurchases start');
+
+    return self.makeQobuzRequest({}, "purchase/getUserPurchases");
+};
+
 QobuzApi.prototype.search = function (query, type) {
 
     var self = this;
