@@ -31,7 +31,7 @@ http.createServer(function (req, res) {
         vqInstance.samplerate = 6;
         vqInstance.userAuthToken = "5u4_h7Fji_Qv0kAx3Qu7P-ZByBcgg97tpdk7cTHZWP7Sz9fVsEPnWyZga0P3CYPLFtOp8zbRGJ75-sWV9LfK7g";
         vqInstance.appId = "285473059";//"285473059"; //;
-        vqInstance.appSecret = "47249d0eaefa6bf43a959c09aacdbce8";
+        vqInstance.appSecret = "xxxxxxxxxxxxxxxxx";
         vqInstance.mpdPlugin = mockMpd;
         //vqInstance.appSecret = "";
 
