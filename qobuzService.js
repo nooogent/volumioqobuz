@@ -8,8 +8,7 @@ module.exports = QobuzService;
 
 function QobuzService(logger, appId, appSecret, userAuthToken) {
     var self = this;
-
-    var logger = logger;
+    
     var api = new qobuzApi(logger, appId, appSecret, userAuthToken);
 
     self.rootList = function () {
@@ -20,6 +19,7 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
                     navigation.navigationFolder("My Albums", "qobuz/favourites/albums"),
                     navigation.navigationFolder("My Tracks", "qobuz/favourites/tracks"),
                     navigation.navigationFolder("My Playlists", "qobuz/favourites/playlists"),
+                    navigation.navigationFolder("My Artists", "qobuz/favourites/artists"),
                     navigation.navigationFolder("My Purchases", "qobuz/purchases"),
                     navigation.navigationFolder("Qobuz Playlists", "qobuz/editor/playlists"),
                     navigation.navigationFolder("New Releases", "qobuz/new/albums"),
@@ -51,6 +51,10 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
         return navigationItemList('qobuz/favourites/tracks', favouriteTracks, ["list"], "qobuz");
     };
 
+    self.favouriteArtistsList = function () {
+        return navigationItemList('qobuz/favourites/artists', favouriteArtists, ["list", "grid"], "qobuz");
+    };
+
     self.userPlaylistsList = function () {
         return navigationItemList('qobuz/favourites/playlists', userPlaylists, ["list", "grid"], "qobuz");
     };
@@ -73,6 +77,10 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
 
     self.purchasesList = function (type) {
         return navigationItemList('qobuz/purchases/' + type, purchases.bind(self, type), ["list", "grid"], 'qobuz/purchases');
+    };
+
+    self.artistAlbumsList = function (artistId, type, prevUri) {
+        return navigationItemList('qobuz/artist/' + artistId, artistAlbums.bind(self, artistId, type), ["list", "grid"], prevUri);
     };
 
     self.search = function (query, type) {
@@ -133,6 +141,11 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
             .then(qobuzTracksToNavItems);
     };
 
+    var favouriteArtists = function () {
+        return api.getFavourites("artists")
+            .then(qobuzArtistsToNavItems.bind(self, "qobuz/favourites/artist/"));
+    };
+
     var userPlaylists = function () {
         return api.getUserPlaylists()
             .then(qobuzPlaylistsToNavItems.bind(self, "qobuz/favourites/playlist/"));
@@ -163,6 +176,11 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
             .then(function (result) {
                 return type === "albums" ? qobuzAlbumsToNavItems("qobuz/purchases/album/", result) : qobuzTracksToNavItems(result);
             });
+    };
+
+    var artistAlbums = function (artistId, type) {
+        return api.getArtist(artistId)
+            .then(qobuzAlbumsToNavItems.bind(self, "qobuz/" + type + "/artist/" + artistId + "/album/"));
     };
 
     var search = function (query, type) {
@@ -213,6 +231,15 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
         });
     };
 
+    var qobuzArtistsToNavItems = function (uriRoot, qobuzResult) {
+        if (!qobuzResult || !qobuzResult.artists || !qobuzResult.artists.items)
+            return [];
+
+        return qobuzResult.artists.items.map(function (qobuzArtist) {
+            return navigation.item("folder", qobuzArtist.name, qobuzArtist.name, "", qobuzArtist.picture || "", "", uriRoot + qobuzArtist.id);
+        });
+    };
+
     var qobuzResultToTrack = function (qobuzTrack, qobuzTrackUrl, qobuzAlbum) {
         return {
             service: 'qobuz',
@@ -242,7 +269,7 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
             //     api.getTrackUrl(trackId, formatId)
             // ])
             .then(function (results) {
-                return qobuzResultToTrack(results, {}, results.album)
+                return qobuzResultToTrack(results, {}, results.album);
                 //return qobuzResultToTrack(results[0], results[1], results[0].album);
             })
             .fail(function (e) {
@@ -311,8 +338,8 @@ QobuzService.login = function (logger, appId, username, password) {
     if (!username || username.length === 0 || !password || password.length === 0)
         return libQ.reject(new Error());
 
-    return new qobuzApi(logger)
-        .login(appId, username, password)
+    return qobuzApi
+        .login(logger, appId, username, password)
         .then(function (result) {
             if (result.user_auth_token && result.user_auth_token.length > 0) {
                 return result.user_auth_token;

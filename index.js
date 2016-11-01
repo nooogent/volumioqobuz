@@ -25,7 +25,7 @@ ControllerQobuz.prototype.onVolumioStart = function () {
     self.samplerate = self.config.get('max_bitrate') || 6;
     self.userAuthToken = self.config.get('user_auth_token');
     self.appId = "285473059"; //214748364";
-    self.appSecret = "xxxxxxxxxxxxxxxxxx";
+    self.appSecret = "xxxxxxxxxxxxxxx";
 };
 
 ControllerQobuz.prototype.getConfigurationFiles = function () {
@@ -123,6 +123,19 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         }
         else if (curUri.startsWith('qobuz/album')) {
             response = self.service.albumTracksList(uriParts[2], 'qobuz');
+        }
+        else if (curUri.startsWith('qobuz/favourites/artist')) {
+            if (curUri === 'qobuz/favourites/artists') {
+                response = self.service.favouriteArtistsList();
+            }
+            else {
+                if (curUri === 'qobuz/favourites/artist/') {
+                    response = self.service.artistAlbumsList(uriParts[3], 'favourites', 'qobuz/favourites/artists');
+                }
+                else {
+                    response = self.service.albumTracksList(uriParts[5], 'qobuz/favourites/artist/' + uriParts[3]);
+                }
+            }
         }
         else if (curUri.startsWith('qobuz/favourites/tracks')) {
             response = self.service.favouriteTracksList();
@@ -326,7 +339,8 @@ ControllerQobuz.prototype.explodeUri = function (uri) {
         uri.startsWith('qobuz/moststreamed/album') ||
         uri.startsWith('qobuz/press/album') ||
         uri.startsWith('qobuz/editor/album') ||
-        uri.startsWith('qobuz/mostfeatured/album')) {
+        uri.startsWith('qobuz/mostfeatured/album') ||
+        uri.startsWith('qobuz/artist/album')) {
 
         var albumId = uri.split('/').pop();
         self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri albumId: ' + albumId);
