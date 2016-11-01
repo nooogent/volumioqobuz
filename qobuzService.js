@@ -40,7 +40,7 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
                     navigation.navigationFolder("Albums", "qobuz/purchases/albums"),
                     navigation.navigationFolder("Tracks", "qobuz/purchases/tracks")
                 ],
-                "qobuz/purchases"));
+                "qobuz"));
     };
 
     self.favouriteAlbumsList = function () {
@@ -81,6 +81,10 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
 
     self.track = function (trackId, formatId) {
         return trackList('qobuz/track/' + trackId, track.bind(self, trackId, formatId));
+    };
+
+    self.trackUrl = function (trackId, formatId) {
+        return trackUrl(trackId, formatId);
     };
 
     self.album = function (albumId, formatId) {
@@ -209,71 +213,101 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
         });
     };
 
-    var qobuzResultToTrack = function (track, trackUrl, album) {
+    var qobuzResultToTrack = function (qobuzTrack, qobuzTrackUrl, qobuzAlbum) {
         return {
             service: 'qobuz',
             type: 'track',
-            name: track.title,
-            title: track.title + '?',
-            artist: album.artist.name,
-            album: album.title,
-            duration: track.duration,
-            albumart: album.image.small,
-            uri: trackUrl.url,
-            samplerate: trackUrl.sampling_rate,
-            bitdepth: trackUrl.bit_depth + ' bit',
-            trackType: trackUrl.mime_type //.split('/')[1];
+            name: qobuzTrack.title,
+            title: qobuzTrack.title + '?',
+            artist: qobuzAlbum.artist.name,
+            album: qobuzAlbum.title,
+            duration: qobuzTrack.duration,
+            albumart: qobuzAlbum.image.small,
+            uri: 'qobuz/track/' + qobuzTrack.id,
+            samplerate: '',
+            bitdepth: '',
+            trackType: ''
+            //uri: qobuzTrackUrl.url,
+            //samplerate: qobuzTrackUrl.sampling_rate,
+            //bitdepth: qobuzTrackUrl.bit_depth + ' bit',
+            //trackType: qobuzTrackUrl.mime_type.split('/')[1]
         };
     };
 
     var track = function (trackId, formatId) {
-        return libQ.all(
-            [
-                api.getTrack(trackId),
-                api.getTrackUrl(trackId, formatId)
-            ])
+        return api.getTrack(trackId)
+            // libQ.all(
+            // [
+            //     api.getTrack(trackId),
+            //     api.getTrackUrl(trackId, formatId)
+            // ])
             .then(function (results) {
-                return qobuzResultToTrack(results[0], results[0].album, results[1]);
+                return qobuzResultToTrack(results, {}, results.album)
+                //return qobuzResultToTrack(results[0], results[1], results[0].album);
             })
             .fail(function (e) {
                 libQ.reject(new Error());
             });
     };
 
+    var trackUrl = function (trackId, formatId) {
+        return api.getTrackUrl(trackId, formatId)
+            .then(function (results) {
+                return {
+                    uri: results.url,
+                    bitdepth: results.bit_depth + " bit",
+                    samplerate: results.sampling_rate,
+                    trackType: results.mime_type.split('/')[1]
+                };
+            })
+            .fail(function (e) {
+                libQ.reject(new Error());
+            });
+    };
+
+    // var album = function (albumId, formatId) {
+    //     return api.getAlbum(albumId)
+    //         .then(function (result) {
+    //             return libQ.all(
+    //                 result.tracks.items.map(function (qobuzTrack) {
+    //                     return api.getTrackUrl(qobuzTrack.id, formatId);
+    //                 }))
+    //                 .then(function (urlResults) {
+    //                     return result.tracks.items.map(function (qobuzTrack, i) {
+    //                         return qobuzResultToTrack(qobuzTrack, urlResults[i], result);
+    //                     });
+    //                 });
+    //         })
+    //         .fail(function (e) {
+    //             libQ.reject(new Error());
+    //         });
+    // };
+
     var album = function (albumId, formatId) {
         return api.getAlbum(albumId)
             .then(function (result) {
-                libQ.all(
-                    result.tracks.items.map(function (qobuzTrack) {
-                        return api.getTrackUrl(qobuzTrack.id, formatId);
-                    }))
-                    .then(function (urlResults) {
-                        return result.tracks.items.map(function (qobuzTrack, i) {
-                            return qobuzResultToTrack(qobuzTrack, result, urlResults[i]);
-                        });
-                    });
+                return result.tracks.items.map(function (qobuzTrack) {
+                    return qobuzResultToTrack(qobuzTrack, {}, result);
+                });
             })
-            .fail(function (e) { libQ.reject(new Error()); });
+            .fail(function (e) {
+                libQ.reject(new Error());
+            });
     };
+
 
     var playlist = function (playlistId, formatId) {
         return api.getPlaylist(playlistId)
             .then(function (result) {
-                libQ.all(
-                    result.tracks.items.map(function (qobuzTrack) {
-                        return api.getTrackUrl(qobuzTrack.id, formatId);
-                    }))
-                    .then(function (urlResults) {
-                        return result.tracks.items.map(function (qobuzTrack, i) {
-                            return qobuzResultToTrack(qobuzTrack, result, urlResults[i]);
-                        });
-                    });
+                return result.tracks.items.map(function (qobuzTrack) {
+                    return qobuzResultToTrack(qobuzTrack, {}, qobuzTrack.album);
+                });
             })
             .fail(function (e) { libQ.reject(new Error()); });
     };
 }
 
-QobuzService.prototype.login = function (logger, appId, username, password) {
+QobuzService.login = function (logger, appId, username, password) {
     if (!username || username.length === 0 || !password || password.length === 0)
         return libQ.reject(new Error());
 

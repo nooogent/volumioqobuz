@@ -25,7 +25,7 @@ ControllerQobuz.prototype.onVolumioStart = function () {
     self.samplerate = self.config.get('max_bitrate') || 6;
     self.userAuthToken = self.config.get('user_auth_token');
     self.appId = "285473059"; //214748364";
-    self.appSecret = "xxxxxxxxxxxxxxxx";
+    self.appSecret = "47249d0eaefa6bf43a959c09aacdbce8";
 };
 
 ControllerQobuz.prototype.getConfigurationFiles = function () {
@@ -177,20 +177,46 @@ ControllerQobuz.prototype.clearAddPlayTrack = function (track) {
 
     var self = this;
     self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::clearAddPlayTrack');
-
+    self.logger.info("Qobuz clearAddPlayTrack track: " + JSON.stringify(track));
+    var trackId = track.uri.split('/').pop();
+    var trackUri;
     return self.mpdPlugin.sendMpdCommand('stop', [])
         .then(function () {
             return self.mpdPlugin.sendMpdCommand('clear', []);
         })
         .then(function () {
-            return self.mpdPlugin.sendMpdCommand('load "' + track.uri + '"', []);
+            return self.service.trackUrl(trackId, self.samplerate);
+        })
+        .then(function (trackData) {
+            //return self.mpdPlugin.sendMpdCommand('load "' + track.uri + '"', []);
+
+            trackUri = trackData.uri;
+            track.bitdepth = trackData.bitdepth;
+            track.samplerate = trackData.samplerate;
+            track.trackType = trackData.trackType;
+            return self.mpdPlugin.sendMpdCommand('load "' + trackUri + '"', []);
         })
         .fail(function (e) {
-            return self.mpdPlugin.sendMpdCommand('add "' + track.uri + '"', []);
+            return self.mpdPlugin.sendMpdCommand('add "' + trackUri + '"', []);
         })
         .then(function () {
             self.commandRouter.stateMachine.setConsumeUpdateService('mpd');
             return self.mpdPlugin.sendMpdCommand('play', []);
+        });
+};
+
+ControllerQobuz.prototype.prefetch = function (track) {
+    var self = this;
+    var trackId = track.uri.split('/').pop();
+    return self.service.trackUrl(trackId, self.samplerate)
+        .then(function (trackData) {
+            track.bitdepth = trackData.bitdepth;
+            track.samplerate = trackData.samplerate;
+            track.trackType = trackData.trackType;
+            return self.mpdPlugin.sendMpdCommand('add "' + trackData.uri + '"', [])
+                .then(function () {
+                    return self.mpdPlugin.sendMpdCommand('consume 1', []);
+                });
         });
 };
 
@@ -331,12 +357,29 @@ ControllerQobuz.prototype.search = function (query) {
 
     var self = this;
 
-    self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::search start query: ' + query);
+    self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::search start query: ' + JSON.stringify(query));
 
     if (!query || !query.value || query.value.length === 0)
         return libQ.resolve([]);
 
-    return self.service.search(query.value)
+    var queryParts = query.value.split(':');
+    var searchQuery = query.value;
+    var searchType;
+    if (queryParts.length > 1) {
+        searchQuery = queryParts[1];
+        var queryType = queryParts[0].toLowerCase();
+        if (queryType === 'albums' || queryType === 'album' || queryType === 'a') {
+            searchType = 'albums';
+        }
+        else if (queryType === 'tracks' || queryType === 'track' || queryType === 't') {
+            searchType = 'tracks';
+        }
+        else if (queryType === 'playlists' || queryType === 'playlist' || queryType === 'p') {
+            searchType = 'playlists';
+        }
+    }
+
+    return self.service.search(searchQuery, searchType)
         .fail(function (e) {
             libQ.reject(new Error());
         });

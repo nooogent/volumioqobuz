@@ -21,7 +21,12 @@ function Navigation() {
     };
 
     var searchResults = function (views, items, type, title) {
-        return { type: type, title: title, availableListViews: views, items: items };
+        return { 
+            type: type, 
+            title: title, 
+            availableListViews: views, 
+            items: items 
+        };
     };
 
     var item = function (type, title, artist, album, albumart, icon, uri) {
