@@ -1,5 +1,5 @@
 var libQ = require('kew');
-var qobuzApi = require('./qobuz-api');
+var qobuzApi = require('./qobuzApi');
 var cachemanager = require('cache-manager');
 var memoryCache = cachemanager.caching({ store: 'memory', max: 100, ttl: 10 * 60/*seconds*/ });
 var navigation = require('./navigation')();
@@ -180,7 +180,7 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
 
     var artistAlbums = function (artistId, type) {
         return api.getArtist(artistId)
-            .then(qobuzAlbumsToNavItems.bind(self, "qobuz/" + type + "/artist/" + artistId + "/album/"));
+            .then(qobuzAlbumsToNavItems.bind(self, "qobuz/" + (type && type.length > 0 ? type + "/" : "")  + "artist/" + artistId + "/album/"));
     };
 
     var search = function (query, type) {
@@ -188,6 +188,7 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
             .then(function (result) {
                 return [
                     navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/album/", result), "title", "Qobuz Albums"),
+                    navigation.searchResults(["list", "grid"], qobuzArtistsToNavItems("qobuz/artist/", result), "title", "Qobuz Artists"),
                     navigation.searchResults(["list"], qobuzTracksToNavItems(result), "title", "Qobuz Tracks"),
                     navigation.searchResults(["list", "grid"], qobuzPlaylistsToNavItems("qobuz/playlist/", result), "title", "Qobuz Playlists")
                 ];
@@ -236,7 +237,7 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
             return [];
 
         return qobuzResult.artists.items.map(function (qobuzArtist) {
-            return navigation.item("folder", qobuzArtist.name, qobuzArtist.name, "", qobuzArtist.picture || "", "", uriRoot + qobuzArtist.id);
+            return navigation.item("folder", qobuzArtist.name, qobuzArtist.name, "", qobuzArtist.picture || "", "fa fa-user", uriRoot + qobuzArtist.id);
         });
     };
 

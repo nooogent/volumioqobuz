@@ -143,7 +143,7 @@ function QobuzApi(logger, appId, appSecret, userAuthToken) {
         if (type)
             params.type = type;
 
-        return makeQobuzRequest(params, "catalog/search");
+        return makeQobuzRequest(params, "catalog/search", 50);
     };
 
     var makeQobuzRequest = function (params, method, limit) {

@@ -129,7 +129,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
                 response = self.service.favouriteArtistsList();
             }
             else {
-                if (curUri === 'qobuz/favourites/artist/') {
+                if (curUri === 'qobuz/favourites/artist/' + uriParts[3]) {
                     response = self.service.artistAlbumsList(uriParts[3], 'favourites', 'qobuz/favourites/artists');
                 }
                 else {
@@ -146,6 +146,14 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
             }
             else {
                 response = self.service.playlistTracksList(uriParts[3], 'qobuz/favourites/playlists');
+            }
+        }
+        else if (curUri.startsWith('qobuz/artist')) {
+            if (curUri === 'qobuz/artist/' + uriParts[2]) {
+                response = self.service.artistAlbumsList(uriParts[2], '', 'qobuz');
+            }
+            else {
+                response = self.service.albumTracksList(uriParts[4], 'qobuz/artist/' + uriParts[2]);
             }
         }
         else if (curUri.startsWith('qobuz/editor/playlist')) {
@@ -340,7 +348,8 @@ ControllerQobuz.prototype.explodeUri = function (uri) {
         uri.startsWith('qobuz/press/album') ||
         uri.startsWith('qobuz/editor/album') ||
         uri.startsWith('qobuz/mostfeatured/album') ||
-        uri.startsWith('qobuz/artist/album')) {
+        uri.startsWith('qobuz/artist/' + uri.split('/')[2] + '/album') ||
+        uri.startsWith('qobuz/favourites/artist/' + uri.split('/')[3] + '/album')) {
 
         var albumId = uri.split('/').pop();
         self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri albumId: ' + albumId);
@@ -384,6 +393,9 @@ ControllerQobuz.prototype.search = function (query) {
         var queryType = queryParts[0].toLowerCase();
         if (queryType === 'albums' || queryType === 'album' || queryType === 'a') {
             searchType = 'albums';
+        }
+        else if (queryType === 'artists' || queryType === 'artist' || queryType === 'r') {
+            searchType = 'artists';
         }
         else if (queryType === 'tracks' || queryType === 'track' || queryType === 't') {
             searchType = 'tracks';
