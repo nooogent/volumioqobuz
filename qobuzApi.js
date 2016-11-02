@@ -6,13 +6,13 @@ var unirest = require('unirest');
 
 module.exports = QobuzApi;
 
-function QobuzApi(logger, appId, appSecret, userAuthToken) {
+function QobuzApi(log, apiArgs) {
     var self = this;
 
-    self.logger = logger;
-    self.appId = appId;
-    self.appSecret = appSecret;
-    self.userAuthToken = userAuthToken;
+    var logger = log;
+    var appId = apiArgs.appId;
+    var appSecret = apiArgs.appSecret;
+    var userAuthToken = apiArgs.userAuthToken;
     
     var getTrackUrl = function (trackId, formatId) {
         var tsrequest = Math.floor(Date.now() / 1000);
@@ -147,13 +147,13 @@ function QobuzApi(logger, appId, appSecret, userAuthToken) {
     };
 
     var makeQobuzRequest = function (params, method, limit) {
-        self.logger.info('[' + Date.now() + '] ' + 'QobuzApi call method: ' + method + '; params: ' + JSON.stringify(params));
+        logger.info('[' + Date.now() + '] ' + 'QobuzApi call method: ' + method + '; params: ' + JSON.stringify(params));
 
         var defer = libQ.defer();
 
         var uri = QobuzApi.qobuzBaseUri + method;
 
-        var headers = { [QobuzApi.appIdHeaderName]: self.appId, [QobuzApi.userAuthHeaderName]: self.userAuthToken };
+        var headers = { [QobuzApi.appIdHeaderName]: appId, [QobuzApi.userAuthHeaderName]: userAuthToken };
 
         params.limit = limit || 150;
 
@@ -163,11 +163,11 @@ function QobuzApi(logger, appId, appSecret, userAuthToken) {
             .query(params)
             .end(function (response) {
                 if (response.ok) {
-                    self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest response: ' + JSON.stringify(response.body));
+                    logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest response: ' + JSON.stringify(response.body));
                     defer.resolve(response.body);
                 }
                 else {
-                    self.logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest failed response: ' + JSON.stringify(response.body));
+                    logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest failed response: ' + JSON.stringify(response.body));
                     defer.reject(new Error());
                 }
             });

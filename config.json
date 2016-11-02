@@ -1,23 +1,34 @@
-
 {
-    "enabled": {
-        "type": "boolean",
-        "value": false
-    },
-    "username": {
-        "type": "string",
-        "value": ""
-    },
-    "password": {
-        "type": "string",
-        "value": ""
-    },
-    "user_auth_token": {
-        "type": "string",
-        "value": ""
-    },
-    "max_bitrate": {
-        "type": "number",
-        "value": 6
-    }
+  "enabled": {
+    "type": "boolean",
+    "value": false
+  },
+  "username": {
+    "type": "string",
+    "value": ""
+  },
+  "password": {
+    "type": "string",
+    "value": ""
+  },
+  "user_auth_token": {
+    "type": "string",
+    "value": ""
+  },
+  "max_bitrate": {
+    "type": "number",
+    "value": 6
+  },
+  "cache_favourites": {
+    "type": "number",
+    "value": 360
+  },
+  "cacheFavourites": {
+    "type": "number",
+    "value": 720
+  },
+  "cache_items": {
+    "type": "number",
+    "value": 720
+  }
 }

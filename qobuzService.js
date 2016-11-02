@@ -1,15 +1,18 @@
 var libQ = require('kew');
 var qobuzApi = require('./qobuzApi');
 var cachemanager = require('cache-manager');
-var memoryCache = cachemanager.caching({ store: 'memory', max: 100, ttl: 10 * 60/*seconds*/ });
+var defaultTtl = 60/*minutes*/;
+var memoryCache = cachemanager.caching({ store: 'memory', max: 100, ttl: defaultTtl });
 var navigation = require('./navigation')();
 
 module.exports = QobuzService;
 
-function QobuzService(logger, appId, appSecret, userAuthToken) {
+function QobuzService(logger, apiArgs, cacheArgs) {
     var self = this;
     
-    var api = new qobuzApi(logger, appId, appSecret, userAuthToken);
+    var api = new qobuzApi(logger, apiArgs);
+
+    memoryCache.reset();
 
     self.rootList = function () {
         return libQ.resolve(
@@ -44,43 +47,43 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
     };
 
     self.favouriteAlbumsList = function () {
-        return navigationItemList('qobuz/favourites/albums', favouriteAlbums, ["list", "grid"], "qobuz");
+        return navigationItemList('qobuz/favourites/albums', favouriteAlbums, ["list", "grid"], "qobuz", cacheArgs.favourites);
     };
 
     self.favouriteTracksList = function () {
-        return navigationItemList('qobuz/favourites/tracks', favouriteTracks, ["list"], "qobuz");
+        return navigationItemList('qobuz/favourites/tracks', favouriteTracks, ["list"], "qobuz", cacheArgs.favourites);
     };
 
     self.favouriteArtistsList = function () {
-        return navigationItemList('qobuz/favourites/artists', favouriteArtists, ["list", "grid"], "qobuz");
+        return navigationItemList('qobuz/favourites/artists', favouriteArtists, ["list", "grid"], "qobuz", cacheArgs.favourites);
     };
 
     self.userPlaylistsList = function () {
-        return navigationItemList('qobuz/favourites/playlists', userPlaylists, ["list", "grid"], "qobuz");
+        return navigationItemList('qobuz/favourites/playlists', userPlaylists, ["list", "grid"], "qobuz", cacheArgs.favourites);
     };
 
     self.albumTracksList = function (albumId, prevUri) {
-        return navigationItemList('qobuz/albumTracks/' + albumId, albumTracks.bind(self, albumId), ["list"], prevUri);
+        return navigationItemList('qobuz/albumTracks/' + albumId, albumTracks.bind(self, albumId), ["list"], prevUri, cacheArgs.items);
     };
 
     self.playlistTracksList = function (playlistId, prevUri) {
-        return navigationItemList('qobuz/playlistTracks/' + playlistId, playlistTracks.bind(self, playlistId), ["list"], prevUri);
+        return navigationItemList('qobuz/playlistTracks/' + playlistId, playlistTracks.bind(self, playlistId), ["list"], prevUri, cacheArgs.items);
     };
 
     self.featuredAlbumsList = function (type, prevUri) {
-        return navigationItemList('qobuz/' + type + '/albums/', featuredAlbums.bind(self, type), ["list", "grid"], prevUri);
+        return navigationItemList('qobuz/' + type + '/albums/', featuredAlbums.bind(self, type), ["list", "grid"], prevUri, cacheArgs.editorial);
     };
 
     self.featuredPlaylistsList = function (type, prevUri) {
-        return navigationItemList('qobuz/' + type + '/playlists/', featuredPlaylists.bind(self, type), ["list", "grid"], prevUri);
+        return navigationItemList('qobuz/' + type + '/playlists/', featuredPlaylists.bind(self, type), ["list", "grid"], prevUri, cacheArgs.editorial);
     };
 
     self.purchasesList = function (type) {
-        return navigationItemList('qobuz/purchases/' + type, purchases.bind(self, type), ["list", "grid"], 'qobuz/purchases');
+        return navigationItemList('qobuz/purchases/' + type, purchases.bind(self, type), ["list", "grid"], 'qobuz/purchases', cacheArgs.favourites);
     };
 
     self.artistAlbumsList = function (artistId, type, prevUri) {
-        return navigationItemList('qobuz/artist/' + artistId, artistAlbums.bind(self, artistId, type), ["list", "grid"], prevUri);
+        return navigationItemList('qobuz/artist/' + artistId, artistAlbums.bind(self, artistId, type), ["list", "grid"], prevUri, cacheArgs.items);
     };
 
     self.search = function (query, type) {
@@ -92,6 +95,7 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
     };
 
     self.trackUrl = function (trackId, formatId) {
+        //this should never be cached...
         return trackUrl(trackId, formatId);
     };
 
@@ -103,13 +107,19 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
         return trackList('qobuz/playlist/' + playlistId, playlist.bind(self, playlistId, formatId));
     };
 
-    var tryCache = function (cacheKey, apiCall) {
+    self.clearCache = function () {
+        return memoryCache ? libQ.resolve(memoryCache.reset()) : libQ.resolve();
+    };
+
+    var tryCache = function (cacheKey, apiCall, ttl) {
         logger.info('cache check');
+
+        ttl = (ttl || defaultTtl) * 60; //seconds
 
         return libQ.resolve(memoryCache.wrap(cacheKey, function () {
             logger.info(cacheKey + ': not in cache');
             return apiCall();
-        }))
+        }, { ttl: ttl }))
             .then(function (items) {
                 logger.info(cacheKey + ': finished with cache');
                 return items;
@@ -120,15 +130,15 @@ function QobuzService(logger, appId, appSecret, userAuthToken) {
             });
     };
 
-    var navigationItemList = function (cacheKey, dataGetter, navigationViews, prevUri) {
-        return tryCache(cacheKey, dataGetter)
+    var navigationItemList = function (cacheKey, dataGetter, navigationViews, prevUri, ttl) {
+        return tryCache(cacheKey, dataGetter, ttl)
             .then(function (navigationItems) {
                 return navigation.browse(navigationViews, navigationItems, prevUri);
             });
     };
 
     var trackList = function (cacheKey, dataGetter) {
-        return tryCache(cacheKey, dataGetter);
+        return tryCache(cacheKey, dataGetter, cacheArgs.items);
     };
 
     var favouriteAlbums = function () {

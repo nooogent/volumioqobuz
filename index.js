@@ -10,22 +10,21 @@ function ControllerQobuz(context) {
     // This fixed variable will let us refer to 'this' object at deeper scopes
     var self = this;
 
-    this.context = context;
-    this.commandRouter = this.context.coreCommand;
-    this.logger = this.context.logger;
-    this.configManager = this.context.configManager;
+    self.context = context;
+    self.commandRouter = context.coreCommand;
+    self.logger = context.logger;
+    self.configManager = context.configManager;
 }
 
 ControllerQobuz.prototype.onVolumioStart = function () {
     var self = this;
-    var configFile = this.commandRouter.pluginManager.getConfigurationFile(this.context, 'config.json');
-    this.config = new (require('v-conf'))();
-    this.config.loadFile(configFile);
+    var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, 'config.json');
+    self.config = new (require('v-conf'))();
+    self.config.loadFile(configFile);
 
     self.samplerate = self.config.get('max_bitrate') || 6;
-    self.userAuthToken = self.config.get('user_auth_token');
-    self.appId = "285473059"; //214748364";
-    self.appSecret = "xxxxxxxxxxxxxxx";
+    self.apiArgs = { appId: "285473059", appSecret: "xxxxxx", userAuthToken: self.config.get('user_auth_token') };
+    self.cacheArgs = { editorial: self.config.get('cache_editorial'), favourites: self.config.get('cache_favourites'), items: self.config.get('cache_items') };
 };
 
 ControllerQobuz.prototype.getConfigurationFiles = function () {
@@ -413,14 +412,14 @@ ControllerQobuz.prototype.search = function (query) {
 
 ControllerQobuz.prototype.initialiseService = function () {
     var self = this;
-    self.service = new qobuzService(self.commandRouter.logger, self.appId, self.appSecret, self.userAuthToken);
+    self.service = new qobuzService(self.commandRouter.logger, self.apiArgs, self.cacheArgs);
 };
 
 ControllerQobuz.prototype.qobuzAccountLogin = function (data) {
     var self = this;
 
     return qobuzService
-        .login(self.commandRouter.logger, self.appId, data["username"], data["password"])
+        .login(self.commandRouter.logger, self.apiArgs.appId, data["username"], data["password"])
         .then(function (result) {
             //update config
             self.config.set('username', data["username"]);
@@ -465,7 +464,58 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
     self.config.set('bitrate', maxBitRate);
     self.samplerate = maxBitRate;
 
-    self.commandRouter.pushToastMessage('success', "Qobuz Settings update", 'Your setting have been successsfully updated.');
+    self.commandRouter.pushToastMessage('success', "Qobuz Settings", 'Qobuz Settings successsfully updated.');
 
     return libQ.resolve({});
+};
+
+ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
+    var cacheFavourites =
+        data['cache_favourites'] && data['cache_favourites'].value && data['cache_favourites'].value.length > 0
+            ? data['cache_favourites'].value
+            : 360;
+
+    var cacheItems =
+        data['cache_items'] && data['cache_items'].value && data['cache_items'].value.length > 0
+            ? data['cache_items'].value
+            : 720;
+
+    var cacheEditorial =
+        data['cache_editorial'] && data['cache_editorial'].value && data['cache_editorial'].value.length > 0
+            ? data['cache_editorial'].value
+            : 720;
+
+    self.config.set('cache_favourites', cacheFavourites);
+    self.config.set('cache_items', cacheItems);
+    self.config.set('cache_editorial', cacheEditorial);
+
+    self.cacheArgs = { editorial: cacheEditorial, favourites: cacheFavourites, items: cacheItems };
+
+    return self.clearQobuzCache()
+        .then(function () {
+            self.initialiseService();
+            self.commandRouter.pushToastMessage('success', "Qobuz Cache Settings", 'Qobuz Cache Settings successsfully updated.');
+        })
+        .fail(function (e) {
+            self.commandRouter.pushToastMessage('failure', "Qobuz Cache Settings", 'Qobuz Cache Settings save failed.');
+            libQ.reject(new Error());
+        });
+};
+
+ControllerQobuz.prototype.clearQobuzCache = function () {
+    var self = this;
+    if (self.service) {
+        return self.service.clearCache()
+            .then(function () {
+                self.commandRouter.pushToastMessage('success', "Qobuz Cache", 'Qobuz Cache successfully cleared.');
+            })
+            .fail(function (e) {
+                self.commandRouter.pushToastMessage('failure', "Qobuz Cache", 'Qobuz Cache clear failed.');
+                libQ.reject(new Error());
+            });
+    }
+    else {
+        self.commandRouter.pushToastMessage('success', "Qobuz Cache", 'Qobuz Cache successfully cleared.');
+        return libQ.resolve();
+    }
 };

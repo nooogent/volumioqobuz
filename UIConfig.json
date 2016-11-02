@@ -106,6 +106,62 @@
           ]
         }
       ]
+    },
+    {
+      "id": "cache_settings",
+      "element": "section",
+      "label": "TRANSLATE.QOBUZ_CACHE_SETTINGS",
+      "icon": "fa-plug",
+      "description": "TRANSLATE.QOBUZ_CACHE_SETTINGS_DESC",
+      "onSave": {
+        "type": "controller",
+        "endpoint": "music_service/qobuz",
+        "method": "saveQobuzCacheSettings"
+      },
+      "saveButton": {
+        "label": "TRANSLATE.SAVE",
+        "data": [
+          "cache_favourites",
+          "cache_items",
+          "cache_editorial"
+        ]
+      },
+      "content": [
+        {
+          "id": "cache_favourites",
+          "type": "number",
+          "element": "input",
+          "doc": "TRANSLATE.QOBUZ_CACHE_FAVOURITES_DOC",
+          "label": "TRANSLATE.QOBUZ_CACHE_FAVOURITES",
+          "value": "360"
+        },
+        {
+          "id": "cache_items",
+          "type": "number",
+          "element": "input",
+          "doc": "TRANSLATE.QOBUZ_CACHE_ITEMS_DOC",
+          "label": "TRANSLATE.QOBUZ_CACHE_ITEMS",
+          "value": "720"
+        },
+        {
+          "id": "cache_editorial",
+          "type": "number",
+          "element": "input",
+          "doc": "TRANSLATE.QOBUZ_CACHE_EDITORIAL_DOC",
+          "label": "TRANSLATE.QOBUZ_CACHE_EDITORIAL",
+          "value": "720"
+        },
+        {
+          "id": "clear_cache",
+          "element": "button",
+          "label": "TRANSLATE.CLEAR_CACHE",
+          "onClick": {
+            "type": "controller",
+            "endpoint": "music_service/qobuz",
+            "method": "clearQobuzCache"
+          }
+        }
+      ]
     }
   ]
 }
