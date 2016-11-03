@@ -133,7 +133,7 @@
           "element": "input",
           "doc": "TRANSLATE.QOBUZ_CACHE_FAVOURITES_DOC",
           "label": "TRANSLATE.QOBUZ_CACHE_FAVOURITES",
-          "value": "360"
+          "value": 360
         },
         {
           "id": "cache_items",
@@ -141,7 +141,7 @@
           "element": "input",
           "doc": "TRANSLATE.QOBUZ_CACHE_ITEMS_DOC",
           "label": "TRANSLATE.QOBUZ_CACHE_ITEMS",
-          "value": "720"
+          "value": 720
         },
         {
           "id": "cache_editorial",
@@ -149,7 +149,7 @@
           "element": "input",
           "doc": "TRANSLATE.QOBUZ_CACHE_EDITORIAL_DOC",
           "label": "TRANSLATE.QOBUZ_CACHE_EDITORIAL",
-          "value": "720"
+          "value": 720
         },
         {
           "id": "clear_cache",

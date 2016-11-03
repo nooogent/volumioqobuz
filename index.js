@@ -252,8 +252,8 @@ ControllerQobuz.prototype.stop = function () {
 ControllerQobuz.prototype.pause = function () {
     var self = this;
     self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::pause');
+    self.commandRouter.stateMachine.setConsumeUpdateService('mpd');
 
-    // TODO don't send 'toggle' if already paused
     return self.mpdPlugin.sendMpdCommand('pause', []);
 };
 
@@ -261,8 +261,8 @@ ControllerQobuz.prototype.pause = function () {
 ControllerQobuz.prototype.resume = function () {
     var self = this;
     self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::resume');
+    self.commandRouter.stateMachine.setConsumeUpdateService('mpd');
 
-    // TODO don't send 'toggle' if already playing
     return self.mpdPlugin.sendMpdCommand('play', []);
 };
 
@@ -309,6 +309,9 @@ ControllerQobuz.prototype.getUIConfig = function () {
                 uiconf.sections[1].description.replace('{0}', self.config.get('username'));
             uiconf.sections[2].content[0].value =
                 findOption(self.config.get('max_bitrate'), uiconf.sections[2].content[0].options);
+            uiconf.sections[3].content[0].value = self.config.get('cache_favourites');
+            uiconf.sections[3].content[1].value = self.config.get('cache_items');
+            uiconf.sections[3].content[2].value = self.config.get('cache_editorial');
 
             uiconf.sections.splice(indexOfSectionToRemove, 1);
 
@@ -470,26 +473,30 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
 };
 
 ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
+    var self = this;
+    
     var cacheFavourites =
-        data['cache_favourites'] && data['cache_favourites'].value && data['cache_favourites'].value.length > 0
+        data['cache_favourites']
             ? data['cache_favourites'].value
             : 360;
 
     var cacheItems =
-        data['cache_items'] && data['cache_items'].value && data['cache_items'].value.length > 0
+        data['cache_items']
             ? data['cache_items'].value
             : 720;
 
     var cacheEditorial =
-        data['cache_editorial'] && data['cache_editorial'].value && data['cache_editorial'].value.length > 0
+        data['cache_editorial']
             ? data['cache_editorial'].value
             : 720;
-
+    
     self.config.set('cache_favourites', cacheFavourites);
     self.config.set('cache_items', cacheItems);
     self.config.set('cache_editorial', cacheEditorial);
 
-    self.cacheArgs = { editorial: cacheEditorial, favourites: cacheFavourites, items: cacheItems };
+    self.cacheArgs = { favourites: cacheFavourites, items: cacheItems, editorial: cacheEditorial };
+
+    self.logger.info('write settings json:' + JSON.stringify(self.cacheArgs));
 
     return self.clearQobuzCache()
         .then(function () {

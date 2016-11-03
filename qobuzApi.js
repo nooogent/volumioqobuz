@@ -26,7 +26,7 @@ function QobuzApi(log, apiArgs) {
                 "intentstream" +
                 "track_id" + trackId +
                 tsrequest +
-                self.appSecret),
+                appSecret),
             'request_ts': tsrequest,
             'track_id': trackId
         };
