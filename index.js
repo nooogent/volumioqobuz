@@ -61,9 +61,11 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
     var uriParts = curUri.split('/');
 
     if (curUri.startsWith('qobuz')) {
+        //root
         if (curUri === 'qobuz') {
             response = self.service.rootList();
         }
+        //albums
         else if (curUri.startsWith('qobuz/favourites/album')) {
             if (curUri === 'qobuz/favourites/albums') {
                 response = self.service.favouriteAlbumsList();
@@ -123,6 +125,15 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         else if (curUri.startsWith('qobuz/album')) {
             response = self.service.albumTracksList(uriParts[2], 'qobuz');
         }
+        //artists
+        else if (curUri.startsWith('qobuz/artist')) {
+            if (curUri === 'qobuz/artist/' + uriParts[2]) {
+                response = self.service.artistAlbumsList(uriParts[2], '', 'qobuz');
+            }
+            else {
+                response = self.service.albumTracksList(uriParts[4], 'qobuz/artist/' + uriParts[2]);
+            }
+        }
         else if (curUri.startsWith('qobuz/favourites/artist')) {
             if (curUri === 'qobuz/favourites/artists') {
                 response = self.service.favouriteArtistsList();
@@ -136,23 +147,17 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
                 }
             }
         }
+        //tracks
         else if (curUri.startsWith('qobuz/favourites/tracks')) {
             response = self.service.favouriteTracksList();
         }
+        //playlists
         else if (curUri.startsWith('qobuz/favourites/playlist')) {
             if (curUri === 'qobuz/favourites/playlists') {
                 response = self.service.userPlaylistsList();
             }
             else {
                 response = self.service.playlistTracksList(uriParts[3], 'qobuz/favourites/playlists');
-            }
-        }
-        else if (curUri.startsWith('qobuz/artist')) {
-            if (curUri === 'qobuz/artist/' + uriParts[2]) {
-                response = self.service.artistAlbumsList(uriParts[2], '', 'qobuz');
-            }
-            else {
-                response = self.service.albumTracksList(uriParts[4], 'qobuz/artist/' + uriParts[2]);
             }
         }
         else if (curUri.startsWith('qobuz/editor/playlist')) {
@@ -166,6 +171,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         else if (curUri.startsWith('qobuz/playlist')) {
             response = self.service.playlistTracksList(uriParts[2], 'qobuz');
         }
+        //purchases
         else if (curUri.startsWith('qobuz/purchases')) {
             if (curUri === 'qobuz/purchases') {
                 response = self.service.purchaseTypesList();
@@ -182,7 +188,29 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
                 }
             }
         }
+        //search
+        else if (curUri.startsWith('qobuz/search')) {
+            if (curUri === 'qobuz/search/' + uriParts[2]) {
+                response = self.search({ value: decodeURIComponent(uriParts[2]), type: 'any' });
+            }
+            else if (curUri.startsWith('qobuz/search/' + uriParts[2] + '/album')) {
+                response = self.service.albumTracksList(uriParts[4], 'qobuz/search/' + uriParts[2]);
+            }
+            else if (curUri.startsWith('qobuz/search/' + uriParts[2] + '/playlist')) {
+                response = self.service.playlistTracksList(uriParts[4], 'qobuz/search/' + uriParts[2]);
+            }
+            else if (curUri === 'qobuz/search/' + uriParts[2] + '/artist/' + uriParts[4]) {
+                response = self.service.artistAlbumsList(uriParts[4], 'search/' + uriParts[2], 'qobuz/search/' + uriParts[2]);
+            }
+            else if (curUri.startsWith('qobuz/search/' + uriParts[2] + '/artist/' + uriParts[4] + '/album')) {
+                response = self.service.albumTracksList(uriParts[6], 'qobuz/search/' + uriParts[2] + '/artist/' + uriParts[4]);
+            }
+        }
+        else {
+            response = libQ.reject();
+        }
     }
+
     return response
         .fail(function (e) {
             self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::handleBrowseUri failed');
@@ -350,8 +378,10 @@ ControllerQobuz.prototype.explodeUri = function (uri) {
         uri.startsWith('qobuz/press/album') ||
         uri.startsWith('qobuz/editor/album') ||
         uri.startsWith('qobuz/mostfeatured/album') ||
+        uri.startsWith('qobuz/search/' + uri.split('/')[2] + '/album') ||
         uri.startsWith('qobuz/artist/' + uri.split('/')[2] + '/album') ||
-        uri.startsWith('qobuz/favourites/artist/' + uri.split('/')[3] + '/album')) {
+        uri.startsWith('qobuz/favourites/artist/' + uri.split('/')[3] + '/album') ||
+        uri.startsWith('qobuz/search/' + uri.split('/')[2] + '/artist/' + uri.split('/')[4] + '/album')) {
 
         var albumId = uri.split('/').pop();
         self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri albumId: ' + albumId);
@@ -361,7 +391,8 @@ ControllerQobuz.prototype.explodeUri = function (uri) {
         uri.startsWith('qobuz/playlist') ||
         uri.startsWith('qobuz/favourites/playlist') ||
         uri.startsWith('qobuz/editor/playlist') ||
-        uri.startsWith('qobuz/public/playlist')) {
+        uri.startsWith('qobuz/public/playlist') ||
+        uri.startsWith('qobuz/search/' + uri.split('/')[2] + '/playlist')) {
 
         var playlistId = uri.split('/').pop();
         self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri playlistId: ' + playlistId);
@@ -474,7 +505,7 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
 
 ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
     var self = this;
-    
+
     var cacheFavourites =
         data['cache_favourites']
             ? data['cache_favourites'].value
@@ -489,7 +520,7 @@ ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
         data['cache_editorial']
             ? data['cache_editorial'].value
             : 720;
-    
+
     self.config.set('cache_favourites', cacheFavourites);
     self.config.set('cache_items', cacheItems);
     self.config.set('cache_editorial', cacheEditorial);

@@ -1,18 +1,18 @@
 var libQ = require('kew');
 var qobuzApi = require('./qobuzApi');
 var cachemanager = require('cache-manager');
-var defaultTtl = 60/*minutes*/;
-var memoryCache = cachemanager.caching({ store: 'memory', max: 100, ttl: defaultTtl });
+var defaultTtl = 60;//minutes
+var defaultCachePruneInterval = 60;//minutes
+var defaultSearchTtl = 5;//minutes
 var navigation = require('./navigation')();
 
 module.exports = QobuzService;
 
 function QobuzService(logger, apiArgs, cacheArgs) {
     var self = this;
-    
-    var api = new qobuzApi(logger, apiArgs);
 
-    memoryCache.reset();
+    var api = new qobuzApi(logger, apiArgs);
+    var memoryCache = initialiseCache();
 
     self.rootList = function () {
         return libQ.resolve(
@@ -87,7 +87,7 @@ function QobuzService(logger, apiArgs, cacheArgs) {
     };
 
     self.search = function (query, type) {
-        return search(query, type);
+        return tryCache('qobuz/search/' + encodeURIComponent(query), search.bind(self, query, type), defaultSearchTtl);
     };
 
     self.track = function (trackId, formatId) {
@@ -110,6 +110,26 @@ function QobuzService(logger, apiArgs, cacheArgs) {
     self.clearCache = function () {
         return memoryCache ? libQ.resolve(memoryCache.reset()) : libQ.resolve();
     };
+
+    function initialiseCache() {
+        var cache = cachemanager.caching({ store: 'memory', max: 100, ttl: defaultTtl });
+
+        //force remove of expired cache entries every hour
+        setInterval(function () {
+            if (cache) {
+                logger.info('[' + Date.now() + '] ' + 'QobuzService::prune cache start');
+                cache.keys()
+                    .then(function (keys) {
+                        libQ.all(keys.map(function (key) {
+                            return cache.get(key);
+                        }))
+                            .then(logger.info.bind(self, '[' + Date.now() + '] ' + 'QobuzService::prune cache end'));
+                    });
+            }
+        }, 1000 * 60 * defaultCachePruneInterval);
+
+        return cache;
+    }
 
     var tryCache = function (cacheKey, apiCall, ttl) {
         logger.info('cache check');
@@ -190,17 +210,17 @@ function QobuzService(logger, apiArgs, cacheArgs) {
 
     var artistAlbums = function (artistId, type) {
         return api.getArtist(artistId)
-            .then(qobuzAlbumsToNavItems.bind(self, "qobuz/" + (type && type.length > 0 ? type + "/" : "")  + "artist/" + artistId + "/album/"));
+            .then(qobuzAlbumsToNavItems.bind(self, "qobuz/" + (type && type.length > 0 ? type + "/" : "") + "artist/" + artistId + "/album/"));
     };
 
     var search = function (query, type) {
         return api.search(query, type)
             .then(function (result) {
                 return [
-                    navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/album/", result), "title", "Qobuz Albums"),
-                    navigation.searchResults(["list", "grid"], qobuzArtistsToNavItems("qobuz/artist/", result), "title", "Qobuz Artists"),
+                    navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/search/" + encodeURIComponent(query) + "/album/", result), "title", "Qobuz Albums"),
+                    navigation.searchResults(["list", "grid"], qobuzArtistsToNavItems("qobuz/search/" + encodeURIComponent(query) + "/artist/", result), "title", "Qobuz Artists"),
                     navigation.searchResults(["list"], qobuzTracksToNavItems(result), "title", "Qobuz Tracks"),
-                    navigation.searchResults(["list", "grid"], qobuzPlaylistsToNavItems("qobuz/playlist/", result), "title", "Qobuz Playlists")
+                    navigation.searchResults(["list", "grid"], qobuzPlaylistsToNavItems("qobuz/search/" + encodeURIComponent(query) + "/playlist/", result), "title", "Qobuz Playlists")
                 ];
             });
     };
