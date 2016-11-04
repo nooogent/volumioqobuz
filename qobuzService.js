@@ -71,7 +71,7 @@ function QobuzService(logger, apiArgs, cacheArgs) {
     };
 
     self.featuredAlbumsList = function (type, prevUri) {
-        return navigationItemList('qobuz/' + type + '/albums/', featuredAlbums.bind(self, type), ["list", "grid"], prevUri, cacheArgs.editorial);
+        return navigationItemList('qobuz/' + (genreId ? genreId + '/' : '') + type + '/albums/', featuredAlbums.bind(self, type, genreId), ["list", "grid"], prevUri, cacheArgs.editorial);
     };
 
     self.featuredPlaylistsList = function (type, prevUri) {
@@ -84,6 +84,24 @@ function QobuzService(logger, apiArgs, cacheArgs) {
 
     self.artistAlbumsList = function (artistId, type, prevUri) {
         return navigationItemList('qobuz/artist/' + artistId, artistAlbums.bind(self, artistId, type), ["list", "grid"], prevUri, cacheArgs.items);
+    };
+
+    self.genres = function (genreId, prevUri) {
+        return tryCache('qobuz/genre' + (genreId ? '/' + genreId : ''), genres.bind(self, genreId), cacheArgs.editorial)
+            .then(function (genreResults) {
+                var lists = [genreResults.genres];
+                if (genreId) {
+                    lists.push([navigation.navigationFolder("New Releases", "qobuz/genre/" + genreId + "/new" + "/items")]);
+                }
+                return { navigation: { lists: lists, prev: { uri: prevUri + (genreResults.parentId ? "/" + genreResults.parentId : "") } } };
+            });
+    };
+
+    self.genreItemList = function (genreId, type, prevUri) {
+        return tryCache('qobuz/genre/' + genreId + "/" + type + "/items", genreItems.bind(self, genreId, type), cacheArgs.editorial)
+            .then(function (results) {
+                return { navigation: { lists: results, prev: { uri: prevUri + "/" + genreId } } };
+            });
     };
 
     self.search = function (query, type) {
@@ -114,7 +132,7 @@ function QobuzService(logger, apiArgs, cacheArgs) {
     function initialiseCache() {
         var cache = cachemanager.caching({ store: 'memory', max: 100, ttl: defaultTtl });
 
-        //force remove of expired cache entries every hour
+        //schedule a forced remove of expired cache entries
         setInterval(function () {
             if (cache) {
                 logger.info('[' + Date.now() + '] ' + 'QobuzService::pruning cache');
@@ -190,8 +208,8 @@ function QobuzService(logger, apiArgs, cacheArgs) {
             .then(qobuzTracksToNavItems);
     };
 
-    var featuredAlbums = function (type) {
-        return api.getFeaturedAlbums(type)
+    var featuredAlbums = function (type, genreId) {
+        return api.getFeaturedAlbums(type, genreId)
             .then(qobuzAlbumsToNavItems.bind(self, "qobuz/" + type + "/album/"));
     };
 
@@ -210,6 +228,40 @@ function QobuzService(logger, apiArgs, cacheArgs) {
     var artistAlbums = function (artistId, type) {
         return api.getArtist(artistId)
             .then(qobuzAlbumsToNavItems.bind(self, "qobuz/" + (type && type.length > 0 ? type + "/" : "") + "artist/" + artistId + "/album/"));
+    };
+
+    var genres = function (genreId) {
+        return api.getGenres(genreId)
+            .then(function (result) {
+                var genreResults = { genres: navigation.searchResults(["list"], qobuzGenresToNavItems(result), "title", "Genres") };
+                if (result && result.parent) {
+                    if (result.parent.path.length > 1) {
+                        genreResults.parentId = result.parent.path[1];
+                    }
+                }
+                return genreResults;
+                //navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/genre/" + type + "/" + (genreId ? genreId + "/" : "") + "album/", results[1]), "title", "Albums"),
+                //navigation.searchResults(["list", "grid"], qobuzPlaylistsToNavItems("qobuz/genre/" + (genreId ? genreId + "/" : "") + "playlist/", results[2]), "title", "Playlists")
+            });
+    };
+
+    var genreItems = function (genreId, type) {
+        return libQ.all([
+            api.getFeaturedAlbums(type, genreId),
+            api.getFeaturedPlaylists("editor", genreId),
+            api.getFeaturedPlaylists("public", genreId)
+                ])
+            .then(function (results) {
+                return [
+                    navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/genre/" + genreId + "/" + type + "/album/", results[0]), "title", "Albums"),
+                    navigation.searchResults(
+                        ["list", "grid"],
+                        qobuzPlaylistsToNavItems("qobuz/genre/" + genreId + "/editor/playlist/", results[1])
+                            .concat(qobuzPlaylistsToNavItems("qobuz/genre/" + genreId + "/public/playlist/", results[2])),
+                        "title",
+                        "Playlists")
+                ];
+            });
     };
 
     var search = function (query, type) {
@@ -240,6 +292,15 @@ function QobuzService(logger, apiArgs, cacheArgs) {
 
         return qobuzResult.playlists.items.map(function (qobuzPlaylist) {
             return navigation.item("folder", qobuzPlaylist.name, qobuzPlaylist.owner.name, qobuzPlaylist.description, qobuzPlaylist.images[0], "", uriRoot + qobuzPlaylist.id);
+        });
+    };
+
+    var qobuzGenresToNavItems = function (qobuzResult) {
+        if (!qobuzResult || !qobuzResult.genres || !qobuzResult.genres.items)
+            return [];
+
+        return qobuzResult.genres.items.map(function (qobuzGenre) {
+            return navigation.item("folder", qobuzGenre.name, "", "", "", "", "qobuz/genre/" + qobuzGenre.id);
         });
     };
 

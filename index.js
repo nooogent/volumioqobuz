@@ -188,6 +188,18 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
                 }
             }
         }
+        //genres
+        else if (curUri.startsWith('qobuz/genre')) {
+            if (curUri === 'qobuz/genres') {
+                response = self.service.genres(undefined, '/');
+            }
+            else if (curUri === 'qobuz/genre/' + uriParts[2]) {
+                response = self.service.genres(uriParts[2], 'qobuz/genres');
+            }
+            else if (curUri === 'qobuz/genre/' + uriParts[2] + '/' + uriParts[3] + '/items') {
+                response = self.service.genreItemList(uriParts[2], uriParts[3], 'qobuz/genre');
+            }
+        }
         //search
         else if (curUri.startsWith('qobuz/search')) {
             if (curUri === 'qobuz/search/' + uriParts[2]) {

@@ -135,6 +135,15 @@ function QobuzApi(log, apiArgs) {
         return makeQobuzRequest(params, "artist/get");
     };
 
+    var getGenres = function (parentId) {
+        var params = {};
+
+        if (parentId)
+            params.parent_id = parentId;
+        
+        return makeQobuzRequest(params, "genre/list");
+    };
+
     var search = function (query, type) {
         var params = {
             query: query
@@ -181,6 +190,7 @@ function QobuzApi(log, apiArgs) {
         getFavourites: getFavourites,
         getFeaturedAlbums: getFeaturedAlbums,
         getFeaturedPlaylists: getFeaturedPlaylists,
+        getGenres: getGenres,
         getPlaylist: getPlaylist,
         getPurchases: getPurchases,
         getTrack: getTrack,
