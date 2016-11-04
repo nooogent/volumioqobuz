@@ -23,7 +23,7 @@ ControllerQobuz.prototype.onVolumioStart = function () {
     self.config.loadFile(configFile);
 
     self.samplerate = self.config.get('max_bitrate') || 6;
-    self.apiArgs = { appId: "285473059", appSecret: "xxxxxx", userAuthToken: self.config.get('user_auth_token') };
+    self.apiArgs = { appId: "285473059", appSecret: "47249d0eaefa6bf43a959c09aacdbce8", userAuthToken: self.config.get('user_auth_token') };
     self.cacheArgs = { editorial: self.config.get('cache_editorial'), favourites: self.config.get('cache_favourites'), items: self.config.get('cache_items') };
 };
 
@@ -191,7 +191,10 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         //search
         else if (curUri.startsWith('qobuz/search')) {
             if (curUri === 'qobuz/search/' + uriParts[2]) {
-                response = self.search({ value: decodeURIComponent(uriParts[2]), type: 'any' });
+                response = self.search({ value: decodeURIComponent(uriParts[2]), type: 'any' })
+                    .then(function (searchResults) {
+                        return { navigation: { lists: searchResults, prev: { uri: '/' } } };
+                    });
             }
             else if (curUri.startsWith('qobuz/search/' + uriParts[2] + '/album')) {
                 response = self.service.albumTracksList(uriParts[4], 'qobuz/search/' + uriParts[2]);

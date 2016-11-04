@@ -117,13 +117,12 @@ function QobuzService(logger, apiArgs, cacheArgs) {
         //force remove of expired cache entries every hour
         setInterval(function () {
             if (cache) {
-                logger.info('[' + Date.now() + '] ' + 'QobuzService::prune cache start');
+                logger.info('[' + Date.now() + '] ' + 'QobuzService::pruning cache');
                 cache.keys()
                     .then(function (keys) {
                         libQ.all(keys.map(function (key) {
                             return cache.get(key);
-                        }))
-                            .then(logger.info.bind(self, '[' + Date.now() + '] ' + 'QobuzService::prune cache end'));
+                        }));
                     });
             }
         }, 1000 * 60 * defaultCachePruneInterval);
