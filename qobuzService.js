@@ -30,7 +30,8 @@ function QobuzService(logger, apiArgs, cacheArgs) {
                     navigation.navigationFolder("Most Streamed", "qobuz/moststreamed/albums"),
                     navigation.navigationFolder("Press Awards", "qobuz/press/albums"),
                     navigation.navigationFolder("Selected by Qobuz", "qobuz/editor/albums"),
-                    navigation.navigationFolder("Selected by the Media", "qobuz/mostfeatured/albums")
+                    navigation.navigationFolder("Selected by the Media", "qobuz/mostfeatured/albums"),
+                    navigation.navigationFolder("Genres", "qobuz/genres")
                 ],
                 "/"));
     };
@@ -91,9 +92,12 @@ function QobuzService(logger, apiArgs, cacheArgs) {
             .then(function (genreResults) {
                 var lists = [genreResults.genres];
                 if (genreId) {
-                    lists.push([navigation.navigationFolder("New Releases", "qobuz/genre/" + genreId + "/new" + "/items")]);
+                    var types = navigation.editorialTypes().map(function(type){
+                        return navigation.navigationFolder(type.name, "qobuz/genre/" + genreId + "/" + type.value + "/items");
+                    });
+                    lists.push(navigation.searchResults(["list", "grid"], types, "title", "Categories"));
                 }
-                return { navigation: { lists: lists, prev: { uri: prevUri + (genreResults.parentId ? "/" + genreResults.parentId : "") } } };
+                return { navigation: { lists: lists, prev: { uri: prevUri + (genreResults.parentId ? "/" + genreResults.parentId : "s") } } };
             });
     };
 
@@ -240,26 +244,26 @@ function QobuzService(logger, apiArgs, cacheArgs) {
                     }
                 }
                 return genreResults;
-                //navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/genre/" + type + "/" + (genreId ? genreId + "/" : "") + "album/", results[1]), "title", "Albums"),
-                //navigation.searchResults(["list", "grid"], qobuzPlaylistsToNavItems("qobuz/genre/" + (genreId ? genreId + "/" : "") + "playlist/", results[2]), "title", "Playlists")
             });
     };
 
     var genreItems = function (genreId, type) {
-        return libQ.all([
-            api.getFeaturedAlbums(type, genreId),
-            api.getFeaturedPlaylists("editor", genreId),
-            api.getFeaturedPlaylists("public", genreId)
-                ])
+        // return libQ.all([
+        //     api.getFeaturedAlbums(type, genreId),
+        //     api.getFeaturedPlaylists("editor", genreId),
+        //     api.getFeaturedPlaylists("public", genreId)
+        //         ])
+        return api.getFeaturedAlbums(type, genreId)
             .then(function (results) {
                 return [
-                    navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/genre/" + genreId + "/" + type + "/album/", results[0]), "title", "Albums"),
-                    navigation.searchResults(
-                        ["list", "grid"],
-                        qobuzPlaylistsToNavItems("qobuz/genre/" + genreId + "/editor/playlist/", results[1])
-                            .concat(qobuzPlaylistsToNavItems("qobuz/genre/" + genreId + "/public/playlist/", results[2])),
-                        "title",
-                        "Playlists")
+                    navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/genre/" + genreId + "/" + type + "/album/", results), "title", "Albums")
+            //filtering playlists by genre doesn't seem to be woring at all in qobbuz api
+                    // navigation.searchResults(
+                    //     ["list", "grid"],
+                    //     qobuzPlaylistsToNavItems("qobuz/genre/" + genreId + "/editor/playlist/", results[1])
+                    //         .concat(qobuzPlaylistsToNavItems("qobuz/genre/" + genreId + "/public/playlist/", results[2])),
+                    //     "title",
+                    //     "Playlists")
                 ];
             });
     };

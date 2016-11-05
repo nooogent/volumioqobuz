@@ -194,10 +194,13 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
                 response = self.service.genres(undefined, '/');
             }
             else if (curUri === 'qobuz/genre/' + uriParts[2]) {
-                response = self.service.genres(uriParts[2], 'qobuz/genres');
+                response = self.service.genres(uriParts[2], 'qobuz/genre');
             }
             else if (curUri === 'qobuz/genre/' + uriParts[2] + '/' + uriParts[3] + '/items') {
                 response = self.service.genreItemList(uriParts[2], uriParts[3], 'qobuz/genre');
+            }
+            else if (curUri.startsWith('qobuz/genre/' + uriParts[2] + '/' + uriParts[3] + '/album')) {
+                response = self.service.albumTracksList(uriParts[5], 'qobuz/genre/' + uriParts[2] + '/' + uriParts[3] + '/items');
             }
         }
         //search
@@ -396,7 +399,8 @@ ControllerQobuz.prototype.explodeUri = function (uri) {
         uri.startsWith('qobuz/search/' + uri.split('/')[2] + '/album') ||
         uri.startsWith('qobuz/artist/' + uri.split('/')[2] + '/album') ||
         uri.startsWith('qobuz/favourites/artist/' + uri.split('/')[3] + '/album') ||
-        uri.startsWith('qobuz/search/' + uri.split('/')[2] + '/artist/' + uri.split('/')[4] + '/album')) {
+        uri.startsWith('qobuz/search/' + uri.split('/')[2] + '/artist/' + uri.split('/')[4] + '/album') ||
+        uri.startsWith('qobuz/genre/' + uri.split('/')[2] + '/' + uri.split('/')[3] + '/album')) {
 
         var albumId = uri.split('/').pop();
         self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri albumId: ' + albumId);

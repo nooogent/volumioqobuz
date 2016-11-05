@@ -21,11 +21,11 @@ function Navigation() {
     };
 
     var searchResults = function (views, items, type, title) {
-        return { 
-            type: type, 
-            title: title, 
-            availableListViews: views, 
-            items: items 
+        return {
+            type: type,
+            title: title,
+            availableListViews: views,
+            items: items
         };
     };
 
@@ -54,8 +54,20 @@ function Navigation() {
         return folder(title, "", "", uri);
     };
 
+    var editorialTypes = function () {
+        return [
+            { name: 'New Releases', value: 'new' },
+            { name: 'Best Sellers', value: 'bestsellers' },
+            { name: 'Most Streamed', value: 'moststreamed' },
+            { name: 'Press Awards', value: 'press' },
+            { name: 'Selected by Qobuz', value: 'editor' },
+            { name: 'Selected by the Media', value: 'mostfeatured' }
+        ];
+    }
+
     return {
         browse: browse,
+        editorialTypes: editorialTypes,
         searchResults: searchResults,
         item: item,
         folder: folder,

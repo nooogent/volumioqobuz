@@ -141,7 +141,7 @@ function QobuzApi(log, apiArgs) {
         if (parentId)
             params.parent_id = parentId;
         
-        return makeQobuzRequest(params, "genre/list");
+        return makeQobuzRequest(params, "genre/list", 100);
     };
 
     var search = function (query, type) {
