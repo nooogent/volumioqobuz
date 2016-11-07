@@ -62,8 +62,8 @@ var createInstance = function () {
 
     var inst = new vq(context);
     inst.samplerate = 6;
-    inst.apiArgs = { appId: "285473059", appSecret: "xxxxx", userAuthToken: "5u4_h7Fji_Qv0kAx3Qu7P-ZByBcgg97tpdk7cTHZWP7Sz9fVsEPnWyZga0P3CYPLFtOp8zbRGJ75-sWV9LfK7g" };
-    inst.cacheArgs = { editorial: 100, favourites: 1, items: 102 };
+    inst.apiArgs = { appId: "285473059", appSecret: "xxxxxx", userAuthToken: "5u4_h7Fji_Qv0kAx3Qu7P-ZByBcgg97tpdk7cTHZWP7Sz9fVsEPnWyZga0P3CYPLFtOp8zbRGJ75-sWV9LfK7g", proxy: 'http://127.0.0.1:8888' };
+    inst.serviceArgs = { cache: { editorial: 100, favourites: 1, items: 102 }, sort: { albums: "artistTitle" } };
     inst.mpdPlugin = mockMpd;
 
     inst.initialiseService();

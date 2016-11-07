@@ -23,8 +23,11 @@ ControllerQobuz.prototype.onVolumioStart = function () {
     self.config.loadFile(configFile);
 
     self.samplerate = self.config.get('max_bitrate') || 6;
-    self.apiArgs = { appId: "285473059", appSecret: "xxxxxx", userAuthToken: self.config.get('user_auth_token') };
-    self.cacheArgs = { editorial: self.config.get('cache_editorial'), favourites: self.config.get('cache_favourites'), items: self.config.get('cache_items') };
+    self.apiArgs = { appId: "285473059", appSecret: "xxxxxx", userAuthToken: self.config.get('user_auth_token'), proxy: self.config.get('proxy') };
+    self.serviceArgs = {
+        cache: { editorial: self.config.get('cache_editorial'), favourites: self.config.get('cache_favourites'), items: self.config.get('cache_items') },
+        sort: { albums: self.config.get('sort_albums') }
+    };
 };
 
 ControllerQobuz.prototype.getConfigurationFiles = function () {
@@ -349,12 +352,22 @@ ControllerQobuz.prototype.getUIConfig = function () {
                     ? 0
                     : 1;
 
+            //account settings/login
             uiconf.sections[0].content[0].value = self.config.get('username');
             uiconf.sections[0].content[1].value = '';
+
+            //account settings/logout
             uiconf.sections[1].description =
                 uiconf.sections[1].description.replace('{0}', self.config.get('username'));
+
+            //qobuz settings
             uiconf.sections[2].content[0].value =
                 findOption(self.config.get('max_bitrate'), uiconf.sections[2].content[0].options);
+            uiconf.sections[2].content[1].value = self.config.get('proxy');
+            uiconf.sections[2].content[2].value =
+                findOption(self.config.get('sort_albums'), uiconf.sections[2].content[2].options);
+
+            //cache settings
             uiconf.sections[3].content[0].value = self.config.get('cache_favourites');
             uiconf.sections[3].content[1].value = self.config.get('cache_items');
             uiconf.sections[3].content[2].value = self.config.get('cache_editorial');
@@ -437,12 +450,23 @@ ControllerQobuz.prototype.search = function (query) {
     if (!query || !query.value || query.value.length === 0)
         return libQ.resolve([]);
 
-    var queryParts = query.value.split(':');
     var searchQuery = query.value;
     var searchType;
+    var collectionSearch = false;
+
+    var queryParts = query.value.split(':');
+
     if (queryParts.length > 1) {
-        searchQuery = queryParts[1];
         var queryType = queryParts[0].toLowerCase();
+        searchQuery = queryParts[1];
+
+        if (queryType.toLowerCase() === 'my') {
+            collectionSearch = true;
+            queryType = queryParts[1].toLowerCase();
+            if (queryParts.length > 2)
+                searchQuery = queryParts[2];
+        }
+
         if (queryType === 'albums' || queryType === 'album' || queryType === 'a') {
             searchType = 'albums';
         }
@@ -457,7 +481,7 @@ ControllerQobuz.prototype.search = function (query) {
         }
     }
 
-    return self.service.search(searchQuery, searchType)
+    return self.service.search(searchQuery, searchType, collectionSearch)
         .fail(function (e) {
             libQ.reject(new Error());
         });
@@ -465,7 +489,7 @@ ControllerQobuz.prototype.search = function (query) {
 
 ControllerQobuz.prototype.initialiseService = function () {
     var self = this;
-    self.service = new qobuzService(self.commandRouter.logger, self.apiArgs, self.cacheArgs);
+    self.service = new qobuzService(self.commandRouter.logger, self.apiArgs, self.serviceArgs);
 };
 
 ControllerQobuz.prototype.qobuzAccountLogin = function (data) {
@@ -477,7 +501,7 @@ ControllerQobuz.prototype.qobuzAccountLogin = function (data) {
             //update config
             self.config.set('username', data["username"]);
             self.config.set('user_auth_token', result);
-            self.userAuthToken = result;
+            self.apiArgs.userAuthToken = result;
 
             //initalise qobuz service
             self.initialiseService();
@@ -497,7 +521,7 @@ ControllerQobuz.prototype.qobuzAccountLogout = function () {
     self.config.set('username', "");
     self.config.set('user_auth_token', "");
 
-    delete self.userAuthToken;
+    delete self.apiArgs.userAuthToken;
     delete self.service;
 
     self.commandRouter.pushToastMessage('success', "Qobuz Account Log out", 'You have been successsfully logged out of your Qobuz account');
@@ -516,6 +540,19 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
             : 6;
     self.config.set('bitrate', maxBitRate);
     self.samplerate = maxBitRate;
+
+    var proxy =
+        data['proxy'] ? data['proxy'].value : '';
+
+    var sortAlbums =
+        data['sort_albums'] && data['sort_albums'].value && data['sort_albums'].value.length > 0
+            ? data['sort_albums'].value
+            : '';
+
+    self.apiArgs.proxy = proxy;
+    self.serviceArgs.sort.albums = proxy;
+
+    self.initialiseService();
 
     self.commandRouter.pushToastMessage('success', "Qobuz Settings", 'Qobuz Settings successsfully updated.');
 
@@ -544,9 +581,9 @@ ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
     self.config.set('cache_items', cacheItems);
     self.config.set('cache_editorial', cacheEditorial);
 
-    self.cacheArgs = { favourites: cacheFavourites, items: cacheItems, editorial: cacheEditorial };
+    self.serviceArgs.cache = { favourites: cacheFavourites, items: cacheItems, editorial: cacheEditorial };
 
-    self.logger.info('write settings json:' + JSON.stringify(self.cacheArgs));
+    self.logger.info('write settings json:' + JSON.stringify(self.serviceArgs));
 
     return self.clearQobuzCache()
         .then(function () {

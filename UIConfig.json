@@ -104,6 +104,38 @@
               "label": "HiRes - 24bits / up to 192 kHz"
             }
           ]
+        },
+        {
+          "id": "proxy",
+          "type": "text",
+          "element": "input",
+          "doc": "TRANSLATE.QOBUZ_PROXY_DOC",
+          "label": "TRANSLATE.QOBUZ_PROXY",
+          "value": 360
+        },
+        {
+          "id": "sort_albums",
+          "doc": "TRANSLATE.QOBUZ_SORT_ALBUMS_DOC",
+          "label": "TRANSLATE.QOBUZ_SORT_ALBUMS",
+          "element": "select",
+          "value": {
+            "value": "",
+            "label": "Qobuz Default"
+          },
+          "options": [
+            {
+              "value": "",
+              "label": "Qobuz Default"
+            },
+            {
+              "value": "Title",
+              "label": "title"
+            },
+            {
+              "value": "Artist | Title",
+              "label": "artistTitle"
+            }
+          ]
         }
       ]
     },

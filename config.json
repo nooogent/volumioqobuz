@@ -19,6 +19,14 @@
     "type": "number",
     "value": 6
   },
+  "proxy": {
+    "type": "string",
+    "value": ""
+  },
+  "sort_albums": {
+    "type": "string",
+    "value": ""
+  },
   "cache_favourites": {
     "type": "number",
     "value": 360

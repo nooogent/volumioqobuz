@@ -13,6 +13,7 @@ function QobuzApi(log, apiArgs) {
     var appId = apiArgs.appId;
     var appSecret = apiArgs.appSecret;
     var userAuthToken = apiArgs.userAuthToken;
+    var proxy = apiArgs.proxy;
     
     var getTrackUrl = function (trackId, formatId) {
         var tsrequest = Math.floor(Date.now() / 1000);
@@ -144,6 +145,42 @@ function QobuzApi(log, apiArgs) {
         return makeQobuzRequest(params, "genre/list", 100);
     };
 
+    var getCollectionAlbums = function (query, source) {
+        var params = {};
+
+        if (query)
+            params.query = query;
+
+        if (source)
+            params.source = source;
+
+        return makeQobuzRequest(params, "collection/getAlbums", 50);
+    };
+
+    var getCollectionArtists = function (query, source) {
+        var params = {};
+
+        if (query)
+            params.query = query;
+
+        if (source)
+            params.source = source;
+
+        return makeQobuzRequest(params, "collection/getArtists", 50);
+    };
+
+    var getCollectionTracks = function (query, source) {
+        var params = {};
+
+        if (query)
+            params.query = query;
+
+        if (source)
+            params.source = source;
+
+        return makeQobuzRequest(params, "collection/getTracks", 50);
+    };
+
     var search = function (query, type) {
         var params = {
             query: query
@@ -168,6 +205,7 @@ function QobuzApi(log, apiArgs) {
 
         unirest
             .get(uri)
+            .proxy(proxy)
             .headers(headers)
             .query(params)
             .end(function (response) {
@@ -187,6 +225,9 @@ function QobuzApi(log, apiArgs) {
     return {
         getAlbum: getAlbum,
         getArtist: getArtist,
+        getCollectionAlbums: getCollectionAlbums,
+        getCollectionArtists: getCollectionArtists,
+        getCollectionTracks: getCollectionTracks,
         getFavourites: getFavourites,
         getFeaturedAlbums: getFeaturedAlbums,
         getFeaturedPlaylists: getFeaturedPlaylists,
@@ -227,6 +268,7 @@ QobuzApi.login = function (logger, appId, username, password) {
 
     unirest
         .get(uri)
+        .proxy(proxy)
         .query(params)
         .end(function (response) {
             if (response.ok) {
