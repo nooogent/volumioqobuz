@@ -3,6 +3,7 @@ var url = require('url');
 var vq = require('./index');
 var port = process.env.port || 1337;
 var libQ = require('kew');
+var as = require('./as');
 
 var vqInstance;
 
@@ -61,11 +62,27 @@ var createInstance = function () {
     var mockMpd = { sendMpdCommand: function (a, b) { log(a); return libQ.resolve(); } };
 
     var inst = new vq(context);
-    inst.samplerate = 6;
-    inst.apiArgs = { appId: "285473059", appSecret: "xxxxxx", userAuthToken: "5u4_h7Fji_Qv0kAx3Qu7P-ZByBcgg97tpdk7cTHZWP7Sz9fVsEPnWyZga0P3CYPLFtOp8zbRGJ75-sWV9LfK7g", proxy: 'http://127.0.0.1:8888' };
-    inst.serviceArgs = { cache: { editorial: 100, favourites: 1, items: 102 }, sort: { albums: "artistTitle" } };
+    inst.config = {
+        set: function (key, value) { log('config set for key: ' + key + 'value: ' + value); }
+    };
+    inst.apiArgs = {
+        appId: "285473059",
+        appSecret: as.get(),
+        userAuthToken: "5u4_h7Fji_Qv0kAx3Qu7P-ZByBcgg97tpdk7cTHZWP7Sz9fVsEPnWyZga0P3CYPLFtOp8zbRGJ75-sWV9LfK7g",
+        proxy: 'http://127.0.0.1:8888',
+        maxBitRate: 6
+    };
+    inst.serviceArgs = {
+        cache: { enabled: true, editorial: 100, favourites: 5, items: 102, pruneInterval: 5 },
+        sort: { albums: "artistTitle", playlists: "title", tracks: "title" },
+        display: { showQobuzListsInRoot: true }
+    };
     inst.mpdPlugin = mockMpd;
-
+    inst.debug = true;
+    inst.logger.qobuzDebug = function (data) {
+        if (inst.debug === true)
+            inst.logger.info('[' + Date.now() + '] ControllerQobuz::' + data);
+    };
     inst.initialiseService();
 
     return inst;

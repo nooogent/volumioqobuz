@@ -1,9 +1,9 @@
 var libQ = require('kew');
 var qobuzApi = require('./qobuzApi');
 var cachemanager = require('cache-manager');
-var defaultTtl = 60;//minutes
-var defaultCachePruneInterval = 60;//minutes
-var defaultSearchTtl = 5;//minutes
+var defaultTtl = 60; //minutes
+var defaultCachePruneInterval = 60; //minutes
+var defaultSearchTtl = 5; //minutes
 var navigation = require('./navigation')();
 
 module.exports = QobuzService;
@@ -15,25 +15,45 @@ function QobuzService(logger, apiArgs, serviceArgs) {
     var memoryCache = initialiseCache();
 
     self.rootList = function () {
+        var items = [
+            navigation.navigationFolder("My Albums", "qobuz/favourites/albums"),
+            navigation.navigationFolder("My Tracks", "qobuz/favourites/tracks"),
+            navigation.navigationFolder("My Playlists", "qobuz/favourites/playlists"),
+            navigation.navigationFolder("My Artists", "qobuz/favourites/artists"),
+            navigation.navigationFolder("My Purchases", "qobuz/purchases"),
+            navigation.navigationFolder("Qobuz Playlists", "qobuz/editor/playlists"),
+            navigation.navigationFolder("Genres", "qobuz/genres")
+        ];
+
+        if (serviceArgs.display.showQobuzListsInRoot === true) {
+            items.push(
+                navigation.navigationFolder("New Releases", "qobuz/new/albums"),
+                navigation.navigationFolder("Best Sellers", "qobuz/bestsellers/albums"),
+                navigation.navigationFolder("Most Streamed", "qobuz/moststreamed/albums"),
+                navigation.navigationFolder("Press Awards", "qobuz/press/albums"),
+                navigation.navigationFolder("Selected by Qobuz", "qobuz/editor/albums"),
+                navigation.navigationFolder("Selected by the Media", "qobuz/mostfeatured/albums"));
+        }
+        else {
+            items.push(navigation.navigationFolder("Discover", "qobuz/discover"));
+        }
+
+        return libQ.resolve(navigation.browse(["list"], items, "/"));
+    };
+
+    self.discover = function () {
         return libQ.resolve(
             navigation.browse(
                 ["list"],
                 [
-                    navigation.navigationFolder("My Albums", "qobuz/favourites/albums"),
-                    navigation.navigationFolder("My Tracks", "qobuz/favourites/tracks"),
-                    navigation.navigationFolder("My Playlists", "qobuz/favourites/playlists"),
-                    navigation.navigationFolder("My Artists", "qobuz/favourites/artists"),
-                    navigation.navigationFolder("My Purchases", "qobuz/purchases"),
-                    navigation.navigationFolder("Qobuz Playlists", "qobuz/editor/playlists"),
                     navigation.navigationFolder("New Releases", "qobuz/new/albums"),
                     navigation.navigationFolder("Best Sellers", "qobuz/bestsellers/albums"),
                     navigation.navigationFolder("Most Streamed", "qobuz/moststreamed/albums"),
                     navigation.navigationFolder("Press Awards", "qobuz/press/albums"),
                     navigation.navigationFolder("Selected by Qobuz", "qobuz/editor/albums"),
-                    navigation.navigationFolder("Selected by the Media", "qobuz/mostfeatured/albums"),
-                    navigation.navigationFolder("Genres", "qobuz/genres")
+                    navigation.navigationFolder("Selected by the Media", "qobuz/mostfeatured/albums")
                 ],
-                "/"));
+                "qobuz"));
     };
 
     self.purchaseTypesList = function () {
@@ -52,7 +72,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
     };
 
     self.favouriteTracksList = function () {
-        return navigationItemList('qobuz/favourites/tracks', favouriteTracks, ["list"], "qobuz", serviceArgs.cache.favourites);
+        return navigationItemList('qobuz/favourites/tracks', favouriteTracks, ["list"], "qobuz", serviceArgs.cache.favourites, serviceArgs.sort.tracks);
     };
 
     self.favouriteArtistsList = function () {
@@ -90,7 +110,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
     };
 
     self.artistAlbumsList = function (artistId, type, prevUri) {
-        return navigationItemList('qobuz/artist/' + artistId, artistAlbums.bind(self, artistId, type), ["list", "grid"], prevUri, serviceArgs.cache.items);
+        return navigationItemList('qobuz/artist/' + artistId, artistAlbums.bind(self, artistId, type), ["list", "grid"], prevUri, serviceArgs.cache.items, serviceArgs.sort.albums);
     };
 
     self.genres = function (genreId, prevUri) {
@@ -115,24 +135,27 @@ function QobuzService(logger, apiArgs, serviceArgs) {
     };
 
     self.search = function (query, type, collectionSearch) {
-        return tryCache('qobuz/search/' + encodeURIComponent(query), search.bind(self, query, type, collectionSearch), defaultSearchTtl);
+        return tryCache(
+            'qobuz/search/' + (collectionSearch === true ? 'my:' : '') + (type ? type + ':' : '') + encodeURIComponent(query),
+            search.bind(self, query, type, collectionSearch),
+            defaultSearchTtl);
     };
 
-    self.track = function (trackId, formatId) {
-        return trackList('qobuz/track/' + trackId, track.bind(self, trackId, formatId));
+    self.track = function (trackId) {
+        return trackList('qobuz/track/' + trackId, track.bind(self, trackId));
     };
 
-    self.trackUrl = function (trackId, formatId) {
+    self.trackUrl = function (trackId) {
         //this should never be cached...
-        return trackUrl(trackId, formatId);
+        return trackUrl(trackId);
     };
 
-    self.album = function (albumId, formatId) {
-        return trackList('qobuz/album/' + albumId, album.bind(self, albumId, formatId));
+    self.album = function (albumId) {
+        return trackList('qobuz/album/' + albumId, album.bind(self, albumId));
     };
 
-    self.playlist = function (playlistId, formatId) {
-        return trackList('qobuz/playlist/' + playlistId, playlist.bind(self, playlistId, formatId));
+    self.playlist = function (playlistId) {
+        return trackList('qobuz/playlist/' + playlistId, playlist.bind(self, playlistId));
     };
 
     self.clearCache = function () {
@@ -140,41 +163,53 @@ function QobuzService(logger, apiArgs, serviceArgs) {
     };
 
     function initialiseCache() {
-        var cache = cachemanager.caching({ store: 'memory', max: 100, ttl: defaultTtl });
+        var cache;
 
-        //schedule a forced remove of expired cache entries
-        setInterval(function () {
-            if (cache) {
-                logger.info('[' + Date.now() + '] ' + 'QobuzService::pruning cache');
-                cache.keys()
-                    .then(function (keys) {
-                        libQ.all(keys.map(function (key) {
-                            return cache.get(key);
-                        }));
-                    });
-            }
-        }, 1000 * 60 * defaultCachePruneInterval);
+        if (serviceArgs.cache.enabled === true) {
+            cache = cachemanager.caching({ store: 'memory', max: 100, ttl: defaultTtl });
+
+            //schedule a clean up of expired cache entries
+            setInterval(function () {
+                if (cache) {
+                    logger.info('[' + Date.now() + '] ' + 'QobuzService::pruning cache');
+                    cache.keys()
+                        .then(function (keys) {
+                            libQ.all(keys.map(function (key) {
+                                return cache.get(key);
+                            }));
+                        });
+                }
+            }, 1000 * 60 * (serviceArgs.cache.pruneInterval || defaultCachePruneInterval));
+        }
 
         return cache;
     }
 
     var tryCache = function (cacheKey, apiCall, ttl) {
-        logger.info('cache check');
+        if (serviceArgs.cache.enabled === true) {
+            logger.qobuzDebug('cache check');
 
-        ttl = (ttl || defaultTtl) * 60; //seconds
+            ttl = (ttl || defaultTtl) * 60; //seconds
 
-        return libQ.resolve(memoryCache.wrap(cacheKey, function () {
-            logger.info(cacheKey + ': not in cache');
-            return apiCall();
-        }, { ttl: ttl }))
-            .then(function (items) {
-                logger.info(cacheKey + ': finished with cache');
-                return items;
-            })
-            .fail(function (e) {
-                logger.info(cacheKey + ': fail cache error');
-                return libQ.reject(new Error());
-            });
+            return libQ.resolve(memoryCache.wrap(cacheKey, function () {
+                logger.qobuzDebug(cacheKey + ': not in cache');
+                return apiCall();
+            }, { ttl: ttl }))
+                .then(function (items) {
+                    logger.qobuzDebug(cacheKey + ': finished with cache');
+                    return items;
+                })
+                .fail(function (e) {
+                    logger.info(cacheKey + ': fail cache error');
+                    return libQ.reject(new Error());
+                });
+        } else {
+            return apiCall()
+                .fail(function (e) {
+                    logger.info('api call failed');
+                    return libQ.reject(new Error());
+                });
+        }
     };
 
     var navigationItemList = function (cacheKey, dataGetter, navigationViews, prevUri, ttl, sortBy) {
@@ -293,13 +328,14 @@ function QobuzService(logger, apiArgs, serviceArgs) {
             }
         }
         else {
+            var baseUri = 'qobuz/search/' + (type ? type + ':' : '') + encodeURIComponent(query);
             searchResults = api.search(query, type)
                 .then(function (result) {
                     return [
-                        navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/search/" + encodeURIComponent(query) + "/album/", result), "title", "Qobuz Albums"),
-                        navigation.searchResults(["list", "grid"], qobuzArtistsToNavItems("qobuz/search/" + encodeURIComponent(query) + "/artist/", result), "title", "Qobuz Artists"),
+                        navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems(baseUri + "/album/", result), "title", "Qobuz Albums"),
+                        navigation.searchResults(["list", "grid"], qobuzArtistsToNavItems(baseUri + "/artist/", result), "title", "Qobuz Artists"),
                         navigation.searchResults(["list"], qobuzTracksToNavItems(result), "title", "Qobuz Tracks"),
-                        navigation.searchResults(["list", "grid"], qobuzPlaylistsToNavItems("qobuz/search/" + encodeURIComponent(query) + "/playlist/", result), "title", "Qobuz Playlists")
+                        navigation.searchResults(["list", "grid"], qobuzPlaylistsToNavItems(baseUri + "/playlist/", result), "title", "Qobuz Playlists")
                     ];
                 });
         }
@@ -310,7 +346,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
         return api.getCollectionAlbums(query)
             .then(function (result) {
                 return [
-                    navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/search/" + encodeURIComponent(query) + "/album/", { albums: result }), "title", "Qobuz Albums")
+                    navigation.searchResults(["list", "grid"], qobuzAlbumsToNavItems("qobuz/search/my:albums:" + encodeURIComponent(query) + "/album/", { albums: result }), "title", "Qobuz Albums")
                 ];
             });
     };
@@ -328,7 +364,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
         return api.getCollectionArtists(query)
             .then(function (result) {
                 return [
-                    navigation.searchResults(["list", "grid"], qobuzArtistsToNavItems("qobuz/search/" + encodeURIComponent(query) + "/artist/", { artists: result }), "title", "Qobuz Artists")
+                    navigation.searchResults(["list", "grid"], qobuzArtistsToNavItems("qobuz/search/my:artists:" + encodeURIComponent(query) + "/artist/", { artists: result }), "title", "Qobuz Artists")
                 ];
             });
     };
@@ -402,31 +438,21 @@ function QobuzService(logger, apiArgs, serviceArgs) {
             samplerate: '',
             bitdepth: '',
             trackType: ''
-            //uri: qobuzTrackUrl.url,
-            //samplerate: qobuzTrackUrl.sampling_rate,
-            //bitdepth: qobuzTrackUrl.bit_depth + ' bit',
-            //trackType: qobuzTrackUrl.mime_type.split('/')[1]
         };
     };
 
-    var track = function (trackId, formatId) {
+    var track = function (trackId) {
         return api.getTrack(trackId)
-            // libQ.all(
-            // [
-            //     api.getTrack(trackId),
-            //     api.getTrackUrl(trackId, formatId)
-            // ])
             .then(function (results) {
                 return qobuzResultToTrack(results, {}, results.album);
-                //return qobuzResultToTrack(results[0], results[1], results[0].album);
             })
             .fail(function (e) {
                 libQ.reject(new Error());
             });
     };
 
-    var trackUrl = function (trackId, formatId) {
-        return api.getTrackUrl(trackId, formatId)
+    var trackUrl = function (trackId) {
+        return api.getTrackUrl(trackId)
             .then(function (results) {
                 return {
                     uri: results.url,
@@ -440,25 +466,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
             });
     };
 
-    // var album = function (albumId, formatId) {
-    //     return api.getAlbum(albumId)
-    //         .then(function (result) {
-    //             return libQ.all(
-    //                 result.tracks.items.map(function (qobuzTrack) {
-    //                     return api.getTrackUrl(qobuzTrack.id, formatId);
-    //                 }))
-    //                 .then(function (urlResults) {
-    //                     return result.tracks.items.map(function (qobuzTrack, i) {
-    //                         return qobuzResultToTrack(qobuzTrack, urlResults[i], result);
-    //                     });
-    //                 });
-    //         })
-    //         .fail(function (e) {
-    //             libQ.reject(new Error());
-    //         });
-    // };
-
-    var album = function (albumId, formatId) {
+    var album = function (albumId) {
         return api.getAlbum(albumId)
             .then(function (result) {
                 return result.tracks.items.map(function (qobuzTrack) {
@@ -469,9 +477,8 @@ function QobuzService(logger, apiArgs, serviceArgs) {
                 libQ.reject(new Error());
             });
     };
-
-
-    var playlist = function (playlistId, formatId) {
+    
+    var playlist = function (playlistId) {
         return api.getPlaylist(playlistId)
             .then(function (result) {
                 return result.tracks.items.map(function (qobuzTrack) {
@@ -491,7 +498,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
             case "artistTitle":
                 fields = ["artist", "title"];
                 break;
-        };
+        }
 
         return (a, b) => fields.map(o => {
             let dir = 1;

@@ -14,8 +14,9 @@ function QobuzApi(log, apiArgs) {
     var appSecret = apiArgs.appSecret;
     var userAuthToken = apiArgs.userAuthToken;
     var proxy = apiArgs.proxy;
+    var formatId = apiArgs.maxBitRate || 6;
     
-    var getTrackUrl = function (trackId, formatId) {
+    var getTrackUrl = function (trackId) {
         var tsrequest = Math.floor(Date.now() / 1000);
 
         var params = {
@@ -193,7 +194,7 @@ function QobuzApi(log, apiArgs) {
     };
 
     var makeQobuzRequest = function (params, method, limit) {
-        logger.info('[' + Date.now() + '] ' + 'QobuzApi call method: ' + method + '; params: ' + JSON.stringify(params));
+        logger.qobuzDebug('QobuzApi call method: ' + method + '; params: ' + JSON.stringify(params));
 
         var defer = libQ.defer();
 
@@ -210,7 +211,7 @@ function QobuzApi(log, apiArgs) {
             .query(params)
             .end(function (response) {
                 if (response.ok) {
-                    logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest response: ' + JSON.stringify(response.body));
+                    logger.qobuzDebug('makeQobuzRequest response: ' + JSON.stringify(response.body));
                     defer.resolve(response.body);
                 }
                 else {
@@ -251,20 +252,16 @@ QobuzApi.getMd5Hash = function (str) {
 
 QobuzApi.login = function (logger, username, password, apiArgs) {
     var defer = libQ.defer();
-
-    logger.info('[' + Date.now() + '] ' + 'login start: ' + username);
-
+    
     var params = {
         'app_id': apiArgs.appId,
         'password': QobuzApi.getMd5Hash(password),
         'username': username
     };
 
-    logger.info('[' + Date.now() + '] ' + 'login params: ' + JSON.stringify(params));
+    logger.qobuzDebug('login params: ' + JSON.stringify(params));
 
     var uri = QobuzApi.qobuzBaseUri + "user/login";
-
-    logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest uri: ' + uri);
 
     unirest
         .get(uri)
@@ -272,7 +269,7 @@ QobuzApi.login = function (logger, username, password, apiArgs) {
         .query(params)
         .end(function (response) {
             if (response.ok) {
-                logger.info('[' + Date.now() + '] ' + 'makeQobuzRequest response: ' + JSON.stringify(response.body));
+                logger.qobuzDebug('makeQobuzRequest response: ' + JSON.stringify(response.body));
                 defer.resolve(response.body);
             }
             else {

@@ -3,6 +3,7 @@
 var libQ = require('kew');
 var config = new (require('v-conf'))();
 var qobuzService = require('./qobuzService');
+var as = require('./as');
 
 module.exports = ControllerQobuz;
 
@@ -13,6 +14,10 @@ function ControllerQobuz(context) {
     self.context = context;
     self.commandRouter = context.coreCommand;
     self.logger = context.logger;
+    self.logger.qobuzDebug = function (data) {
+        if (self.debug === true)
+            self.logger.info('[' + Date.now() + '] ControllerQobuz::' + data);
+    };
     self.configManager = context.configManager;
 }
 
@@ -21,13 +26,33 @@ ControllerQobuz.prototype.onVolumioStart = function () {
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, 'config.json');
     self.config = new (require('v-conf'))();
     self.config.loadFile(configFile);
-
-    self.samplerate = self.config.get('max_bitrate') || 6;
-    self.apiArgs = { appId: "285473059", appSecret: "xxxxxx", userAuthToken: self.config.get('user_auth_token'), proxy: self.config.get('proxy') };
-    self.serviceArgs = {
-        cache: { editorial: self.config.get('cache_editorial'), favourites: self.config.get('cache_favourites'), items: self.config.get('cache_items') },
-        sort: { albums: self.config.get('sort_albums'), playlists: self.config.get('sort_playlists') }
+    
+    self.apiArgs = {
+        appId: "285473059",
+        appSecret: as.get(),
+        userAuthToken:
+        self.config.get('user_auth_token'),
+        proxy: self.config.get('proxy'),
+        maxBitRate: self.config.get('max_bitrate') || 6
     };
+    self.serviceArgs = {
+        cache: {
+            enabled: self.config.get('cache_enabled'),
+            editorial: self.config.get('cache_editorial'),
+            favourites: self.config.get('cache_favourites'),
+            items: self.config.get('cache_items'),
+            pruneInterval: self.config.get('cache_prune_interval')
+        },
+        sort: {
+            albums: self.config.get('sort_albums'),
+            playlists: self.config.get('sort_playlists'),
+            tracks: self.config.get('sort_tracks')
+        },
+        display: {
+            showQobuzListsInRoot: self.config.get('show_qobuz_lists')
+        }
+    };
+    self.debug = self.config.get('debug') || false;
 };
 
 ControllerQobuz.prototype.getConfigurationFiles = function () {
@@ -53,12 +78,15 @@ ControllerQobuz.prototype.onStart = function () {
     self.addToBrowseSources();
     self.mpdPlugin = self.commandRouter.pluginManager.getPlugin('music_service', 'mpd');
     self.initialiseService();
+
     return libQ.resolve();
 };
 
 ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
     var self = this;
-    self.logger.info('ControllerQobuz::handleBrowseUri: "' + curUri + '"');
+
+    self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::handleBrowseUri');
+    self.logger.qobuzDebug('handleBrowseUri: "' + curUri + '"');
 
     var response;
     var uriParts = curUri.split('/');
@@ -67,6 +95,10 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         //root
         if (curUri === 'qobuz') {
             response = self.service.rootList();
+        }
+        //discover
+        else if (curUri === 'qobuz/discover') {
+            response = self.service.discover();
         }
         //albums
         else if (curUri.startsWith('qobuz/favourites/album')) {
@@ -79,7 +111,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         }
         else if (curUri.startsWith('qobuz/new/album')) {
             if (curUri === 'qobuz/new/albums') {
-                response = self.service.featuredAlbumsList("new", "qobuz");
+                response = self.service.featuredAlbumsList("new", self.serviceArgs.display.showQobuzListsInRoot === true ? "qobuz" : "qobuz/discover");
             }
             else {
                 response = self.service.albumTracksList(uriParts[3], 'qobuz/new/albums');
@@ -87,7 +119,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         }
         else if (curUri.startsWith('qobuz/bestsellers/album')) {
             if (curUri === 'qobuz/bestsellers/albums') {
-                response = self.service.featuredAlbumsList("bestsellers", "qobuz");
+                response = self.service.featuredAlbumsList("bestsellers", self.serviceArgs.display.showQobuzListsInRoot === true ? "qobuz" : "qobuz/discover");
             }
             else {
                 response = self.service.albumTracksList(uriParts[3], 'qobuz/bestsellers/albums');
@@ -95,7 +127,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         }
         else if (curUri.startsWith('qobuz/moststreamed/album')) {
             if (curUri === 'qobuz/moststreamed/albums') {
-                response = self.service.featuredAlbumsList("moststreamed", "qobuz");
+                response = self.service.featuredAlbumsList("moststreamed", self.serviceArgs.display.showQobuzListsInRoot === true ? "qobuz" : "qobuz/discover");
             }
             else {
                 response = self.service.albumTracksList(uriParts[3], 'qobuz/moststreamed/albums');
@@ -103,7 +135,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         }
         else if (curUri.startsWith('qobuz/press/album')) {
             if (curUri === 'qobuz/press/albums') {
-                response = self.service.featuredAlbumsList("press", "qobuz");
+                response = self.service.featuredAlbumsList("press", self.serviceArgs.display.showQobuzListsInRoot === true ? "qobuz" : "qobuz/discover");
             }
             else {
                 response = self.service.albumTracksList(uriParts[3], 'qobuz/press/albums');
@@ -111,7 +143,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         }
         else if (curUri.startsWith('qobuz/editor/album')) {
             if (curUri === 'qobuz/editor/albums') {
-                response = self.service.featuredAlbumsList("editor", "qobuz");
+                response = self.service.featuredAlbumsList("editor", self.serviceArgs.display.showQobuzListsInRoot === true ? "qobuz" : "qobuz/discover");
             }
             else {
                 response = self.service.albumTracksList(uriParts[3], 'qobuz/editor/albums');
@@ -119,7 +151,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
         }
         else if (curUri.startsWith('qobuz/mostfeatured/album')) {
             if (curUri === 'qobuz/mostfeatured/albums') {
-                response = self.service.featuredAlbumsList("mostfeatured", "qobuz");
+                response = self.service.featuredAlbumsList("mostfeatured", self.serviceArgs.display.showQobuzListsInRoot === true ? "qobuz" : "qobuz/discover");
             }
             else {
                 response = self.service.albumTracksList(uriParts[3], 'qobuz/mostfeatured/albums');
@@ -234,7 +266,7 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
 
     return response
         .fail(function (e) {
-            self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::handleBrowseUri failed');
+            self.logger.info('[' + Date.now() + '] ' + 'ControllerQobuz::handleBrowseUri failed');
             libQ.reject(new Error());
         });
 };
@@ -243,22 +275,22 @@ ControllerQobuz.prototype.handleBrowseUri = function (curUri) {
 
 // Define a method to clear, add, and play an array of tracks
 ControllerQobuz.prototype.clearAddPlayTrack = function (track) {
-
     var self = this;
+
     self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::clearAddPlayTrack');
-    self.logger.info("Qobuz clearAddPlayTrack track: " + JSON.stringify(track));
+    self.logger.qobuzDebug('clearAddPlayTrack track: ' + JSON.stringify(track));
+
     var trackId = track.uri.split('/').pop();
     var trackUri;
+
     return self.mpdPlugin.sendMpdCommand('stop', [])
         .then(function () {
             return self.mpdPlugin.sendMpdCommand('clear', []);
         })
         .then(function () {
-            return self.service.trackUrl(trackId, self.samplerate);
+            return self.service.trackUrl(trackId);
         })
         .then(function (trackData) {
-            //return self.mpdPlugin.sendMpdCommand('load "' + track.uri + '"', []);
-
             trackUri = trackData.uri;
             track.bitdepth = trackData.bitdepth;
             track.samplerate = trackData.samplerate;
@@ -277,7 +309,7 @@ ControllerQobuz.prototype.clearAddPlayTrack = function (track) {
 ControllerQobuz.prototype.prefetch = function (track) {
     var self = this;
     var trackId = track.uri.split('/').pop();
-    return self.service.trackUrl(trackId, self.samplerate)
+    return self.service.trackUrl(trackId)
         .then(function (trackData) {
             track.bitdepth = trackData.bitdepth;
             track.samplerate = trackData.samplerate;
@@ -368,11 +400,17 @@ ControllerQobuz.prototype.getUIConfig = function () {
                 findOption(self.config.get('sort_albums'), uiconf.sections[2].content[2].options);
             uiconf.sections[2].content[3].value =
                 findOption(self.config.get('sort_playlists'), uiconf.sections[2].content[3].options);
+            uiconf.sections[2].content[4].value =
+                findOption(self.config.get('sort_tracks'), uiconf.sections[2].content[4].options);
+            uiconf.sections[2].content[5].value = self.config.get('show_qobuz_lists');
+            uiconf.sections[2].content[6].value = self.config.get('debug');
 
             //cache settings
-            uiconf.sections[3].content[0].value = self.config.get('cache_favourites');
-            uiconf.sections[3].content[1].value = self.config.get('cache_items');
-            uiconf.sections[3].content[2].value = self.config.get('cache_editorial');
+            uiconf.sections[3].content[0].value = self.config.get('cache_enabled');
+            uiconf.sections[3].content[1].value = self.config.get('cache_favourites');
+            uiconf.sections[3].content[2].value = self.config.get('cache_items');
+            uiconf.sections[3].content[3].value = self.config.get('cache_editorial');
+            uiconf.sections[3].content[4].value = self.config.get('cache_prune_interval');
 
             uiconf.sections.splice(indexOfSectionToRemove, 1);
 
@@ -390,16 +428,19 @@ ControllerQobuz.prototype.getConf = function (varName) { };
 ControllerQobuz.prototype.setConf = function (varName, varValue) { };
 
 ControllerQobuz.prototype.explodeUri = function (uri) {
-
     var self = this;
 
-    var itemGetter;
     self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri start uri: ' + uri);
 
+    var exploder;
+    var uriParts = uri.split('/');
+
     if (uri.startsWith('qobuz/track/')) {
-        var trackId = uri.split('/').pop();
-        self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri track id: ' + trackId);
-        itemGetter = self.service.track.bind(self, trackId, self.samplerate);
+        var trackId = uriParts.pop();
+
+        self.logger.qobuzDebug('explodeUri track id: ' + trackId);
+
+        exploder = self.service.track.bind(self, trackId);
     }
     else if (
         uri.startsWith('qobuz/album') ||
@@ -411,43 +452,47 @@ ControllerQobuz.prototype.explodeUri = function (uri) {
         uri.startsWith('qobuz/press/album') ||
         uri.startsWith('qobuz/editor/album') ||
         uri.startsWith('qobuz/mostfeatured/album') ||
-        uri.startsWith('qobuz/search/' + uri.split('/')[2] + '/album') ||
-        uri.startsWith('qobuz/artist/' + uri.split('/')[2] + '/album') ||
-        uri.startsWith('qobuz/favourites/artist/' + uri.split('/')[3] + '/album') ||
-        uri.startsWith('qobuz/search/' + uri.split('/')[2] + '/artist/' + uri.split('/')[4] + '/album') ||
-        uri.startsWith('qobuz/genre/' + uri.split('/')[2] + '/' + uri.split('/')[3] + '/album')) {
+        uri.startsWith('qobuz/search/' + uriParts[2] + '/album') ||
+        uri.startsWith('qobuz/artist/' + uriParts[2] + '/album') ||
+        uri.startsWith('qobuz/favourites/artist/' + uriParts[3] + '/album') ||
+        uri.startsWith('qobuz/search/' + uriParts[2] + '/artist/' + uriParts[4] + '/album') ||
+        uri.startsWith('qobuz/genre/' + uriParts[2] + '/' + uriParts[3] + '/album')) {
 
-        var albumId = uri.split('/').pop();
-        self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri albumId: ' + albumId);
-        itemGetter = self.service.album.bind(self, albumId, self.samplerate);
+        var albumId = uriParts.pop();
+
+        self.logger.qobuzDebug('explodeUri albumId: ' + albumId);
+
+        exploder = self.service.album.bind(self, albumId);
     }
     else if (
         uri.startsWith('qobuz/playlist') ||
         uri.startsWith('qobuz/favourites/playlist') ||
         uri.startsWith('qobuz/editor/playlist') ||
         uri.startsWith('qobuz/public/playlist') ||
-        uri.startsWith('qobuz/search/' + uri.split('/')[2] + '/playlist')) {
+        uri.startsWith('qobuz/search/' + uriParts[2] + '/playlist')) {
 
-        var playlistId = uri.split('/').pop();
-        self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri playlistId: ' + playlistId);
-        itemGetter = self.service.playlist.bind(self, playlistId, self.samplerate);
+        var playlistId = uriParts.pop();
+
+        self.logger.qobuzDebug('explodeUri playlistId: ' + playlistId);
+
+        exploder = self.service.playlist.bind(self, playlistId);
     }
     else {
-        self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri no uri pattern matched');
+        self.logger.info('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri no uri pattern matched');
     }
 
-    return itemGetter()
+    return exploder()
         .fail(function (e) {
-            self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri failed');
+            self.logger.info('[' + Date.now() + '] ' + 'ControllerQobuz::explodeUri failed');
             libQ.reject(new Error());
         });
 };
 
 ControllerQobuz.prototype.search = function (query) {
-
     var self = this;
 
-    self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::search start query: ' + JSON.stringify(query));
+    self.commandRouter.pushConsoleMessage('[' + Date.now() + '] ' + 'ControllerQobuz::search start query');
+    self.logger.qobuzDebug('search query: ' + JSON.stringify(query));
 
     if (!query || !query.value || query.value.length === 0)
         return libQ.resolve([]);
@@ -463,8 +508,10 @@ ControllerQobuz.prototype.search = function (query) {
         searchQuery = queryParts[1];
 
         if (queryType.toLowerCase() === 'my') {
+
             collectionSearch = true;
             queryType = queryParts[1].toLowerCase();
+
             if (queryParts.length > 2)
                 searchQuery = queryParts[2];
         }
@@ -491,14 +538,14 @@ ControllerQobuz.prototype.search = function (query) {
 
 ControllerQobuz.prototype.initialiseService = function () {
     var self = this;
-    self.service = new qobuzService(self.commandRouter.logger, self.apiArgs, self.serviceArgs);
+    self.service = new qobuzService(self.logger, self.apiArgs, self.serviceArgs);
 };
 
 ControllerQobuz.prototype.qobuzAccountLogin = function (data) {
     var self = this;
 
     return qobuzService
-        .login(self.commandRouter.logger, data["username"], data["password"], self.apiArgs)
+        .login(self.logger, data["username"], data["password"], self.apiArgs)
         .then(function (result) {
             //update config
             self.config.set('username', data["username"]);
@@ -510,10 +557,11 @@ ControllerQobuz.prototype.qobuzAccountLogin = function (data) {
 
             //celebrate great success!
             self.commandRouter.pushToastMessage('success', "Qobuz Account Login", 'You have been successsfully logged in to your Qobuz account');
+            libQ.resolve();
         })
         .fail(function (e) {
             self.commandRouter.pushToastMessage('failure', "Qobuz Account Login", 'Qobuz account login failed.');
-            libQ.reject(new Error());
+            libQ.resolve();
         });
 };
 
@@ -534,14 +582,14 @@ ControllerQobuz.prototype.qobuzAccountLogout = function () {
 ControllerQobuz.prototype.saveQobuzSettings = function (data) {
     var self = this;
 
-    self.commandRouter.logger.info('saveQobuzSettings data: ' + JSON.stringify(data));
+    self.logger.qobuzDebug('saveQobuzSettings data: ' + JSON.stringify(data));
 
     var maxBitRate =
         data['max_bitrate'] && data['max_bitrate'].value && data['max_bitrate'].value.length > 0
             ? data['max_bitrate'].value
             : 6;
-    self.config.set('bitrate', maxBitRate);
-    self.samplerate = maxBitRate;
+    self.config.set('max_bitrate', maxBitRate);
+    self.apiArgs.maxBitRate = maxBitRate;
 
     var proxy =
         data['proxy'] ? data['proxy'].value : '';
@@ -562,15 +610,32 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
     self.config.set('sort_playlists', sortPlaylists);
     self.serviceArgs.sort.playlists = sortPlaylists;
 
+    var sortTracks =
+        data['sort_tracks'] && data['sort_tracks'].value && data['sort_tracks'].value.length > 0
+            ? data['sort_tracks'].value
+            : '';
+    self.config.set('sort_tracks', sortTracks);
+    self.serviceArgs.sort.tracks = sortTracks;
+
+    var showQobuzListsInRoot = data['show_qobuz_lists'] ? data['show_qobuz_lists'].value : false;
+    self.config.set('show_qobuz_lists', showQobuzListsInRoot);
+    self.serviceArgs.display.showQobuzListsInRoot = showQobuzListsInRoot;
+
+    var debug = data['debug'] ? data['debug'].value : false;
+    self.config.set('debug', debug);
+    self.debug = debug;
+
     self.initialiseService();
 
     self.commandRouter.pushToastMessage('success', "Qobuz Settings", 'Qobuz Settings successsfully updated.');
 
-    return libQ.resolve({});
+    return libQ.resolve();
 };
 
 ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
     var self = this;
+
+    var cacheEnabled = data['cache_enabled'] ? data['cache_enabled'].value : true;
 
     var cacheFavourites =
         data['cache_favourites']
@@ -587,13 +652,20 @@ ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
             ? data['cache_editorial'].value
             : 720;
 
+    var cachePruneInterval =
+        data['cache_prune_interval']
+            ? data['cache_prune_interval'].value
+            : 60;
+
+    self.config.set('cache_enabled', cacheEnabled);
     self.config.set('cache_favourites', cacheFavourites);
     self.config.set('cache_items', cacheItems);
     self.config.set('cache_editorial', cacheEditorial);
+    self.config.set('cache_prune_interval', cachePruneInterval);
 
-    self.serviceArgs.cache = { favourites: cacheFavourites, items: cacheItems, editorial: cacheEditorial };
+    self.serviceArgs.cache = { enabled: cacheEnabled, favourites: cacheFavourites, items: cacheItems, editorial: cacheEditorial, pruneInterval: cachePruneInterval };
 
-    self.logger.info('write settings json:' + JSON.stringify(self.serviceArgs));
+    self.logger.qobuzDebug('saveQobuzCacheSettings json:' + JSON.stringify(self.serviceArgs));
 
     return self.clearQobuzCache()
         .then(function () {

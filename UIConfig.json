@@ -76,7 +76,10 @@
           "max_bitrate",
           "proxy",
           "sort_albums",
-          "sort_playlists"
+          "sort_playlists",
+          "sort_tracks",
+          "show_qobuz_lists",
+          "debug"
         ]
       },
       "content": [
@@ -159,6 +162,44 @@
               "label": "Title"
             }
           ]
+        },
+        {
+          "id": "sort_tracks",
+          "doc": "TRANSLATE.QOBUZ_SORT_TRACKS_DOC",
+          "label": "TRANSLATE.QOBUZ_SORT_TRACKS",
+          "element": "select",
+          "value": {
+            "value": "",
+            "label": "Qobuz Default"
+          },
+          "options": [
+            {
+              "value": "",
+              "label": "Qobuz Default"
+            },
+            {
+              "value": "title",
+              "label": "Title"
+            },
+            {
+              "value": "artistTitle",
+              "label": "Artist | Title"
+            }
+          ]
+        },
+        {
+          "id": "show_qobuz_lists",
+          "element": "switch",
+          "doc": "TRANSLATE.QOBUZ_SHOW_QOBUZ_LISTS_DOC",
+          "label": "TRANSLATE.QOBUZ_SHOW_QOBUZ_LISTS",
+          "value": false
+        },
+        {
+          "id": "debug",
+          "element": "switch",
+          "doc": "TRANSLATE.QOBUZ_DEBUG_DOC",
+          "label": "TRANSLATE.QOBUZ_DEBUG",
+          "value": false
         }
       ]
     },
@@ -176,12 +217,21 @@
       "saveButton": {
         "label": "TRANSLATE.SAVE",
         "data": [
+          "cache_enabled",
           "cache_favourites",
           "cache_items",
-          "cache_editorial"
+          "cache_editorial",
+          "cache_prune_interval"
         ]
       },
       "content": [
+        {
+          "id": "cache_enabled",
+          "element": "switch",
+          "doc": "TRANSLATE.QOBUZ_CACHE_ENABLED_DOC",
+          "label": "TRANSLATE.QOBUZ_CACHE_ENABLED",
+          "value": true
+        },
         {
           "id": "cache_favourites",
           "type": "number",
@@ -205,6 +255,14 @@
           "doc": "TRANSLATE.QOBUZ_CACHE_EDITORIAL_DOC",
           "label": "TRANSLATE.QOBUZ_CACHE_EDITORIAL",
           "value": 720
+        },
+        {
+          "id": "cache_prune_interval",
+          "type": "number",
+          "element": "input",
+          "doc": "TRANSLATE.QOBUZ_CACHE_PRUNE_INTERVAL_DOC",
+          "label": "TRANSLATE.QOBUZ_CACHE_PRUNE_INTERVAL",
+          "value": 60
         },
         {
           "id": "clear_cache",
