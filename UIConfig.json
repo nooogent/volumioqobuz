@@ -73,7 +73,10 @@
       "saveButton": {
         "label": "TRANSLATE.SAVE",
         "data": [
-          "max_bitrate"
+          "max_bitrate",
+          "proxy",
+          "sort_albums",
+          "sort_playlists"
         ]
       },
       "content": [
@@ -128,12 +131,32 @@
               "label": "Qobuz Default"
             },
             {
-              "value": "Title",
-              "label": "title"
+              "value": "title",
+              "label": "Title"
             },
             {
-              "value": "Artist | Title",
-              "label": "artistTitle"
+              "value": "artistTitle",
+              "label": "Artist | Title"
+            }
+          ]
+        },
+        {
+          "id": "sort_playlists",
+          "doc": "TRANSLATE.QOBUZ_SORT_PLAYLISTS_DOC",
+          "label": "TRANSLATE.QOBUZ_SORT_PLAYLISTS",
+          "element": "select",
+          "value": {
+            "value": "",
+            "label": "Qobuz Default"
+          },
+          "options": [
+            {
+              "value": "",
+              "label": "Qobuz Default"
+            },
+            {
+              "value": "title",
+              "label": "Title"
             }
           ]
         }

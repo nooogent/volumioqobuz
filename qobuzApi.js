@@ -249,13 +249,13 @@ QobuzApi.getMd5Hash = function (str) {
     return crypto.createHash('md5').update(str).digest("hex");
 };
 
-QobuzApi.login = function (logger, appId, username, password) {
+QobuzApi.login = function (logger, username, password, apiArgs) {
     var defer = libQ.defer();
 
     logger.info('[' + Date.now() + '] ' + 'login start: ' + username);
 
     var params = {
-        'app_id': appId,
+        'app_id': apiArgs.appId,
         'password': QobuzApi.getMd5Hash(password),
         'username': username
     };
@@ -268,7 +268,7 @@ QobuzApi.login = function (logger, appId, username, password) {
 
     unirest
         .get(uri)
-        .proxy(proxy)
+        .proxy(apiArgs.proxy || '')
         .query(params)
         .end(function (response) {
             if (response.ok) {

@@ -60,7 +60,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
     };
 
     self.userPlaylistsList = function () {
-        return navigationItemList('qobuz/favourites/playlists', userPlaylists, ["list", "grid"], "qobuz", serviceArgs.cache.favourites);
+        return navigationItemList('qobuz/favourites/playlists', userPlaylists, ["list", "grid"], "qobuz", serviceArgs.cache.favourites, serviceArgs.sort.playlists);
     };
 
     self.albumTracksList = function (albumId, prevUri) {
@@ -501,12 +501,12 @@ function QobuzService(logger, apiArgs, serviceArgs) {
     };
 }
 
-QobuzService.login = function (logger, appId, username, password) {
+QobuzService.login = function (logger, username, password, apiArgs) {
     if (!username || username.length === 0 || !password || password.length === 0)
         return libQ.reject(new Error());
 
     return qobuzApi
-        .login(logger, appId, username, password)
+        .login(logger, username, password, apiArgs)
         .then(function (result) {
             if (result.user_auth_token && result.user_auth_token.length > 0) {
                 return result.user_auth_token;

@@ -26,7 +26,7 @@ ControllerQobuz.prototype.onVolumioStart = function () {
     self.apiArgs = { appId: "285473059", appSecret: "xxxxxx", userAuthToken: self.config.get('user_auth_token'), proxy: self.config.get('proxy') };
     self.serviceArgs = {
         cache: { editorial: self.config.get('cache_editorial'), favourites: self.config.get('cache_favourites'), items: self.config.get('cache_items') },
-        sort: { albums: self.config.get('sort_albums') }
+        sort: { albums: self.config.get('sort_albums'), playlists: self.config.get('sort_playlists') }
     };
 };
 
@@ -366,6 +366,8 @@ ControllerQobuz.prototype.getUIConfig = function () {
             uiconf.sections[2].content[1].value = self.config.get('proxy');
             uiconf.sections[2].content[2].value =
                 findOption(self.config.get('sort_albums'), uiconf.sections[2].content[2].options);
+            uiconf.sections[2].content[3].value =
+                findOption(self.config.get('sort_playlists'), uiconf.sections[2].content[3].options);
 
             //cache settings
             uiconf.sections[3].content[0].value = self.config.get('cache_favourites');
@@ -496,7 +498,7 @@ ControllerQobuz.prototype.qobuzAccountLogin = function (data) {
     var self = this;
 
     return qobuzService
-        .login(self.commandRouter.logger, self.apiArgs.appId, data["username"], data["password"])
+        .login(self.commandRouter.logger, data["username"], data["password"], self.apiArgs)
         .then(function (result) {
             //update config
             self.config.set('username', data["username"]);
@@ -543,14 +545,22 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
 
     var proxy =
         data['proxy'] ? data['proxy'].value : '';
+    self.config.set('proxy', proxy);
+    self.apiArgs.proxy = proxy;
 
     var sortAlbums =
         data['sort_albums'] && data['sort_albums'].value && data['sort_albums'].value.length > 0
             ? data['sort_albums'].value
             : '';
+    self.config.set('sort_albums', sortAlbums);
+    self.serviceArgs.sort.albums = sortAlbums;
 
-    self.apiArgs.proxy = proxy;
-    self.serviceArgs.sort.albums = proxy;
+    var sortPlaylists =
+        data['sort_playlists'] && data['sort_playlists'].value && data['sort_playlists'].value.length > 0
+            ? data['sort_playlists'].value
+            : '';
+    self.config.set('sort_playlists', sortPlaylists);
+    self.serviceArgs.sort.playlists = sortPlaylists;
 
     self.initialiseService();
 

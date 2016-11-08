@@ -27,6 +27,10 @@
     "type": "string",
     "value": ""
   },
+  "sort_playlists": {
+    "type": "string",
+    "value": ""
+  },
   "cache_favourites": {
     "type": "number",
     "value": 360
