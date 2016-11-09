@@ -456,9 +456,9 @@ function QobuzService(logger, apiArgs, serviceArgs) {
             .then(function (results) {
                 return {
                     uri: results.url,
-                    bitdepth: results.bit_depth + " bit",
-                    samplerate: results.sampling_rate,
-                    trackType: results.mime_type.split('/')[1]
+                    bitdepth: results.bit_depth ? results.bit_depth + " bit" : "",
+                    samplerate: results.sampling_rate ? results.sampling_rate + " kHz" : "320 kbps",
+                    trackType: results.mime_type.split('/')[1].replace('mpeg', 'mp3')
                 };
             })
             .fail(function (e) {

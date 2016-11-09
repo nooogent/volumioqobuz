@@ -631,11 +631,11 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
     self.config.set('sort_tracks', sortTracks);
     self.serviceArgs.sort.tracks = sortTracks;
 
-    var showQobuzListsInRoot = data['show_qobuz_lists'] || false;
+    var showQobuzListsInRoot = data['show_qobuz_lists'];
     self.config.set('show_qobuz_lists', showQobuzListsInRoot);
     self.serviceArgs.display.showQobuzListsInRoot = showQobuzListsInRoot;
 
-    var debug = data['debug'] || false;
+    var debug = data['debug'];
     self.config.set('debug', debug);
     self.debug = debug;
 
@@ -649,7 +649,7 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
 ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
     var self = this;
 
-    var cacheEnabled = data['cache_enabled'] || true;
+    var cacheEnabled = data['cache_enabled'];
 
     var cacheFavourites =
         data['cache_favourites']
