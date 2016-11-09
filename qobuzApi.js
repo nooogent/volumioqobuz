@@ -15,7 +15,7 @@ function QobuzApi(log, apiArgs) {
     var userAuthToken = apiArgs.userAuthToken;
     var proxy = apiArgs.proxy;
     var formatId = apiArgs.maxBitRate || 6;
-    
+
     var getTrackUrl = function (trackId) {
         var tsrequest = Math.floor(Date.now() / 1000);
 
@@ -41,11 +41,11 @@ function QobuzApi(log, apiArgs) {
             'type': favouriteType
         };
 
-        return makeQobuzRequest(params, "favorite/getUserFavorites");
+        return makeQobuzRequest(params, "favorite/getUserFavorites", 500);
     };
 
     var getUserPlaylists = function () {
-        return makeQobuzRequest({}, "playlist/getUserPlaylists");
+        return makeQobuzRequest({}, "playlist/getUserPlaylists", 500);
     };
 
     var getAlbum = function (albumId) {
@@ -102,8 +102,8 @@ function QobuzApi(log, apiArgs) {
                 default:
             }
         }
-        
-        return makeQobuzRequest(params, "album/getFeatured");
+
+        return makeQobuzRequest(params, "album/getFeatured", 250);
     };
 
     var getFeaturedPlaylists = function (type, genreId) {
@@ -125,7 +125,7 @@ function QobuzApi(log, apiArgs) {
     };
 
     var getPurchases = function () {
-        return makeQobuzRequest({}, "purchase/getUserPurchases");
+        return makeQobuzRequest({}, "purchase/getUserPurchases", 500);
     };
 
     var getArtist = function (artistId) {
@@ -134,7 +134,7 @@ function QobuzApi(log, apiArgs) {
             'artist_id': artistId
         };
 
-        return makeQobuzRequest(params, "artist/get");
+        return makeQobuzRequest(params, "artist/get", 250);
     };
 
     var getGenres = function (parentId) {
@@ -142,7 +142,7 @@ function QobuzApi(log, apiArgs) {
 
         if (parentId)
             params.parent_id = parentId;
-        
+
         return makeQobuzRequest(params, "genre/list", 100);
     };
 
@@ -202,7 +202,7 @@ function QobuzApi(log, apiArgs) {
 
         var headers = { [QobuzApi.appIdHeaderName]: appId, [QobuzApi.userAuthHeaderName]: userAuthToken };
 
-        params.limit = limit || 150;
+        params.limit = limit || 250;
 
         unirest
             .get(uri)
@@ -252,7 +252,7 @@ QobuzApi.getMd5Hash = function (str) {
 
 QobuzApi.login = function (logger, username, password, apiArgs) {
     var defer = libQ.defer();
-    
+
     var params = {
         'app_id': apiArgs.appId,
         'password': QobuzApi.getMd5Hash(password),
