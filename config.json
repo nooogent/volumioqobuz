@@ -19,6 +19,10 @@
     "type": "number",
     "value": 6
   },
+  "gapless": {
+    "type": "boolean",
+    "value": true
+  },
   "proxy": {
     "type": "string",
     "value": ""
@@ -50,10 +54,6 @@
   "cache_favourites": {
     "type": "number",
     "value": 360
-  },
-  "cacheFavourites": {
-    "type": "number",
-    "value": 720
   },
   "cache_items": {
     "type": "number",

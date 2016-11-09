@@ -393,7 +393,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
             return [];
 
         return qobuzResult.genres.items.map(function (qobuzGenre) {
-            return navigation.item("folder", qobuzGenre.name, "", "", "", "", "qobuz/genre/" + qobuzGenre.id);
+            return navigation.item("folder", qobuzGenre.name, "", "", "", "fa fa-filter", "qobuz/genre/" + qobuzGenre.id);
         });
     };
 

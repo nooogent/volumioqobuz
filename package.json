@@ -10,7 +10,7 @@
   "license": "ISC",
   "volumio_info": {
     "prettyName": "Qobuz",
-    "icon": "fa-spotify",
+    "icon": "fa-music",
     "plugin_type": "music_service"
   },
   "dependencies": {

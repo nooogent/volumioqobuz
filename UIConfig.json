@@ -7,7 +7,7 @@
       "id": "section_account_login",
       "element": "section",
       "label": "TRANSLATE.QOBUZ_ACCOUNT",
-      "icon": "fa-plug",
+      "icon": "fa-user",
       "description": "TRANSLATE.QOBUZ_ACCOUNT_LOGIN_DESC",
       "onSave": {
         "type": "controller",
@@ -44,7 +44,7 @@
       "id": "section_account_logout",
       "element": "section",
       "label": "TRANSLATE.QOBUZ_ACCOUNT",
-      "icon": "fa-plug",
+      "icon": "fa-user",
       "description": "TRANSLATE.QOBUZ_ACCOUNT_LOGOUT_DESC",
       "content": [
         {
@@ -74,6 +74,7 @@
         "label": "TRANSLATE.SAVE",
         "data": [
           "max_bitrate",
+          "gapless",
           "proxy",
           "sort_albums",
           "sort_playlists",
@@ -110,6 +111,13 @@
               "label": "HiRes - 24bits / up to 192 kHz"
             }
           ]
+        },
+        {
+          "id": "gapless",
+          "element": "switch",
+          "doc": "TRANSLATE.QOBUZ_GAPLESS_DOC",
+          "label": "TRANSLATE.QOBUZ_GAPLESS",
+          "value": true
         },
         {
           "id": "proxy",
@@ -207,7 +215,7 @@
       "id": "cache_settings",
       "element": "section",
       "label": "TRANSLATE.QOBUZ_CACHE_SETTINGS",
-      "icon": "fa-plug",
+      "icon": "fa-book",
       "description": "TRANSLATE.QOBUZ_CACHE_SETTINGS_DESC",
       "onSave": {
         "type": "controller",

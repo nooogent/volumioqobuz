@@ -26,7 +26,7 @@ ControllerQobuz.prototype.onVolumioStart = function () {
     var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, 'config.json');
     self.config = new (require('v-conf'))();
     self.config.loadFile(configFile);
-    
+
     self.apiArgs = {
         appId: "285473059",
         appSecret: as.get(),
@@ -52,7 +52,11 @@ ControllerQobuz.prototype.onVolumioStart = function () {
             showQobuzListsInRoot: self.config.get('show_qobuz_lists')
         }
     };
-    self.debug = self.config.get('debug') || false;
+    self.gapless = self.config.get('gapless');
+    self.debug = self.config.get('debug');
+
+    if (self.gapless === true)
+        self.prefetch = self.qobuzPrefetch;
 };
 
 ControllerQobuz.prototype.getConfigurationFiles = function () {
@@ -295,18 +299,19 @@ ControllerQobuz.prototype.clearAddPlayTrack = function (track) {
             track.bitdepth = trackData.bitdepth;
             track.samplerate = trackData.samplerate;
             track.trackType = trackData.trackType;
+            //self.commandRouter.stateMachine.setConsumeUpdateService('mpd');
             return self.mpdPlugin.sendMpdCommand('load "' + trackUri + '"', []);
         })
         .fail(function (e) {
             return self.mpdPlugin.sendMpdCommand('add "' + trackUri + '"', []);
         })
         .then(function () {
-            self.commandRouter.stateMachine.setConsumeUpdateService('mpd');
+            //self.commandRouter.stateMachine.setConsumeUpdateService('mpd');
             return self.mpdPlugin.sendMpdCommand('play', []);
         });
 };
 
-ControllerQobuz.prototype.prefetch = function (track) {
+ControllerQobuz.prototype.qobuzPrefetch = function (track) {
     var self = this;
     var trackId = track.uri.split('/').pop();
     return self.service.trackUrl(trackId)
@@ -395,15 +400,16 @@ ControllerQobuz.prototype.getUIConfig = function () {
             //qobuz settings
             uiconf.sections[2].content[0].value =
                 findOption(self.config.get('max_bitrate'), uiconf.sections[2].content[0].options);
-            uiconf.sections[2].content[1].value = self.config.get('proxy');
-            uiconf.sections[2].content[2].value =
-                findOption(self.config.get('sort_albums'), uiconf.sections[2].content[2].options);
+            uiconf.sections[2].content[1].value = self.config.get('gapless');
+            uiconf.sections[2].content[2].value = self.config.get('proxy');
             uiconf.sections[2].content[3].value =
-                findOption(self.config.get('sort_playlists'), uiconf.sections[2].content[3].options);
+                findOption(self.config.get('sort_albums'), uiconf.sections[2].content[3].options);
             uiconf.sections[2].content[4].value =
-                findOption(self.config.get('sort_tracks'), uiconf.sections[2].content[4].options);
-            uiconf.sections[2].content[5].value = self.config.get('show_qobuz_lists');
-            uiconf.sections[2].content[6].value = self.config.get('debug');
+                findOption(self.config.get('sort_playlists'), uiconf.sections[2].content[4].options);
+            uiconf.sections[2].content[5].value =
+                findOption(self.config.get('sort_tracks'), uiconf.sections[2].content[5].options);
+            uiconf.sections[2].content[6].value = self.config.get('show_qobuz_lists');
+            uiconf.sections[2].content[7].value = self.config.get('debug');
 
             //cache settings
             uiconf.sections[3].content[0].value = self.config.get('cache_enabled');
@@ -585,43 +591,51 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
     self.logger.qobuzDebug('saveQobuzSettings data: ' + JSON.stringify(data));
 
     var maxBitRate =
-        data['max_bitrate'] && data['max_bitrate'].value && data['max_bitrate'].value.length > 0
+        data['max_bitrate'] && data['max_bitrate'].value
             ? data['max_bitrate'].value
             : 6;
     self.config.set('max_bitrate', maxBitRate);
     self.apiArgs.maxBitRate = maxBitRate;
 
-    var proxy =
-        data['proxy'] ? data['proxy'].value : '';
+    var gapless = data['gapless'];
+    self.config.set('gapless', gapless);
+    self.gapless = gapless;
+
+    if (gapless === true)
+        self.prefetch = self.qobuzPrefetch;
+    else
+        delete self.prefetch;
+
+    var proxy = data['proxy'] || '';
     self.config.set('proxy', proxy);
     self.apiArgs.proxy = proxy;
 
     var sortAlbums =
-        data['sort_albums'] && data['sort_albums'].value && data['sort_albums'].value.length > 0
+        data['sort_albums'] && data['sort_albums'].value
             ? data['sort_albums'].value
             : '';
     self.config.set('sort_albums', sortAlbums);
     self.serviceArgs.sort.albums = sortAlbums;
 
     var sortPlaylists =
-        data['sort_playlists'] && data['sort_playlists'].value && data['sort_playlists'].value.length > 0
+        data['sort_playlists'] && data['sort_playlists'].value
             ? data['sort_playlists'].value
             : '';
     self.config.set('sort_playlists', sortPlaylists);
     self.serviceArgs.sort.playlists = sortPlaylists;
 
     var sortTracks =
-        data['sort_tracks'] && data['sort_tracks'].value && data['sort_tracks'].value.length > 0
+        data['sort_tracks'] && data['sort_tracks'].value
             ? data['sort_tracks'].value
             : '';
     self.config.set('sort_tracks', sortTracks);
     self.serviceArgs.sort.tracks = sortTracks;
 
-    var showQobuzListsInRoot = data['show_qobuz_lists'] ? data['show_qobuz_lists'].value : false;
+    var showQobuzListsInRoot = data['show_qobuz_lists'] || false;
     self.config.set('show_qobuz_lists', showQobuzListsInRoot);
     self.serviceArgs.display.showQobuzListsInRoot = showQobuzListsInRoot;
 
-    var debug = data['debug'] ? data['debug'].value : false;
+    var debug = data['debug'] || false;
     self.config.set('debug', debug);
     self.debug = debug;
 
@@ -635,7 +649,7 @@ ControllerQobuz.prototype.saveQobuzSettings = function (data) {
 ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
     var self = this;
 
-    var cacheEnabled = data['cache_enabled'] ? data['cache_enabled'].value : true;
+    var cacheEnabled = data['cache_enabled'] || true;
 
     var cacheFavourites =
         data['cache_favourites']
@@ -663,7 +677,13 @@ ControllerQobuz.prototype.saveQobuzCacheSettings = function (data) {
     self.config.set('cache_editorial', cacheEditorial);
     self.config.set('cache_prune_interval', cachePruneInterval);
 
-    self.serviceArgs.cache = { enabled: cacheEnabled, favourites: cacheFavourites, items: cacheItems, editorial: cacheEditorial, pruneInterval: cachePruneInterval };
+    self.serviceArgs.cache = {
+        enabled: cacheEnabled,
+        favourites: cacheFavourites,
+        items: cacheItems,
+        editorial: cacheEditorial,
+        pruneInterval: cachePruneInterval
+    };
 
     self.logger.qobuzDebug('saveQobuzCacheSettings json:' + JSON.stringify(self.serviceArgs));
 
