@@ -299,14 +299,13 @@ ControllerQobuz.prototype.clearAddPlayTrack = function (track) {
             track.bitdepth = trackData.bitdepth;
             track.samplerate = trackData.samplerate;
             track.trackType = trackData.trackType;
-            //self.commandRouter.stateMachine.setConsumeUpdateService('mpd');
             return self.mpdPlugin.sendMpdCommand('load "' + trackUri + '"', []);
         })
         .fail(function (e) {
             return self.mpdPlugin.sendMpdCommand('add "' + trackUri + '"', []);
         })
         .then(function () {
-            //self.commandRouter.stateMachine.setConsumeUpdateService('mpd');
+            self.commandRouter.stateMachine.setConsumeUpdateService('mpd');
             return self.mpdPlugin.sendMpdCommand('play', []);
         });
 };
