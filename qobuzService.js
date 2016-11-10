@@ -123,7 +123,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
                     });
                     lists.push(navigation.searchResults(["list", "grid"], types, "title", "Categories"));
                 }
-                return { navigation: { lists: lists, prev: { uri: prevUri + (genreResults.parentId ? "/" + genreResults.parentId : "s") } } };
+                return { navigation: { lists: lists, prev: { uri: prevUri + (genreResults.parentId ? "/" + genreResults.parentId : (genreId ? "s" : "")) } } };
             });
     };
 
@@ -215,7 +215,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
     var navigationItemList = function (cacheKey, dataGetter, navigationViews, prevUri, ttl, sortBy) {
         return tryCache(cacheKey, dataGetter, ttl)
             .then(function (navigationItems) {
-                if(sortBy && sortBy !== '')
+                if (sortBy && sortBy !== '')
                     navigationItems = navigationItems.sort(fieldSorter(sortBy));
                 return navigation.browse(navigationViews, navigationItems, prevUri);
             });
@@ -281,10 +281,8 @@ function QobuzService(logger, apiArgs, serviceArgs) {
         return api.getGenres(genreId)
             .then(function (result) {
                 var genreResults = { genres: navigation.searchResults(["list"], qobuzGenresToNavItems(result), "title", "Genres") };
-                if (result && result.parent) {
-                    if (result.parent.path.length > 1) {
-                        genreResults.parentId = result.parent.path[1];
-                    }
+                if (result && result.parent && result.parent.path && result.parent.path.length > 1) {
+                    genreResults.parentId = result.parent.path[1];
                 }
                 return genreResults;
             });
@@ -477,7 +475,7 @@ function QobuzService(logger, apiArgs, serviceArgs) {
                 libQ.reject(new Error());
             });
     };
-    
+
     var playlist = function (playlistId) {
         return api.getPlaylist(playlistId)
             .then(function (result) {
